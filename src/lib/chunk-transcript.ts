@@ -1,0 +1,65 @@
+import type { TranscriptEntry } from "@/types/video-processor";
+
+export type TranscriptChunk = {
+  index: number;
+  entries: TranscriptEntry[];
+  text: string;
+  start: number;
+  end: number;
+};
+
+const MAX_CHARS_PER_CHUNK = 12000;
+const MAX_ENTRIES_PER_CHUNK = 180;
+const MAX_SECONDS_PER_CHUNK = 8 * 60;
+
+export function chunkTranscriptEntries(entries: TranscriptEntry[]) {
+  const chunks: TranscriptChunk[] = [];
+  let current: TranscriptEntry[] = [];
+  let currentChars = 0;
+  let chunkStart = 0;
+
+  function flushChunk() {
+    if (!current.length) {
+      return;
+    }
+
+    const text = current.map((entry) => entry.text).join("\n");
+
+    chunks.push({
+      index: chunks.length,
+      entries: current,
+      text,
+      start: current[0]?.start ?? 0,
+      end: current[current.length - 1]?.end ?? current[0]?.end ?? 0,
+    });
+
+    current = [];
+    currentChars = 0;
+    chunkStart = 0;
+  }
+
+  for (const entry of entries) {
+    if (!current.length) {
+      chunkStart = entry.start;
+    }
+
+    const nextChars = currentChars + entry.text.length;
+    const nextDuration = entry.end - chunkStart;
+    const shouldFlush =
+      current.length >= MAX_ENTRIES_PER_CHUNK ||
+      nextChars > MAX_CHARS_PER_CHUNK ||
+      nextDuration > MAX_SECONDS_PER_CHUNK;
+
+    if (shouldFlush) {
+      flushChunk();
+      chunkStart = entry.start;
+    }
+
+    current.push(entry);
+    currentChars += entry.text.length;
+  }
+
+  flushChunk();
+
+  return chunks;
+}
