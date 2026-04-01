@@ -78,7 +78,6 @@ HTTPS_PROXY=http://127.0.0.1:7890
 本地构建：
 
 ```bash
-docker build -f subtitle-service/Dockerfile -t gemini-video2text-subtitle .
 docker build -f Dockerfile.subtitle-service -t gemini-video2text-subtitle .
 ```
 
