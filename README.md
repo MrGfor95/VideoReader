@@ -97,7 +97,7 @@ subtitle-service/DEPLOY_RAILWAY.md
 现在仓库也已经内置了这些部署文件：
 
 ```text
-subtitle-service/Dockerfile
+Dockerfile.subtitle-service
 railway.json
 render.yaml
 ```

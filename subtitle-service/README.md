@@ -71,7 +71,7 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 仓库已经内置：
 
-- `subtitle-service/Dockerfile`
+- `Dockerfile.subtitle-service`
 - `railway.json`
 - `render.yaml`
 
@@ -79,6 +79,7 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 ```bash
 docker build -f subtitle-service/Dockerfile -t gemini-video2text-subtitle .
+docker build -f Dockerfile.subtitle-service -t gemini-video2text-subtitle .
 ```
 
 本地运行：

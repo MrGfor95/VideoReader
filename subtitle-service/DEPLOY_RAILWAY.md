@@ -3,7 +3,7 @@
 这份清单对应当前仓库里的独立字幕服务：
 
 - 服务入口：`subtitle-service/src/index.ts`
-- Docker 配置：`subtitle-service/Dockerfile`
+- Docker 配置：`Dockerfile.subtitle-service`
 - Railway 配置：`railway.json`
 
 ## 上线前检查
@@ -48,7 +48,7 @@ ALL_PROXY=http://your-proxy
 4. 如果 Railway 没自动识别子目录 Dockerfile，在服务变量里增加：
 
 ```text
-RAILWAY_DOCKERFILE_PATH=subtitle-service/Dockerfile
+RAILWAY_DOCKERFILE_PATH=Dockerfile.subtitle-service
 ```
 
 5. 打开服务的 `Variables`，添加本清单里的环境变量。
@@ -110,7 +110,7 @@ Railway 官方文档说明，服务应监听 `0.0.0.0:$PORT`。
 在服务变量中添加：
 
 ```text
-RAILWAY_DOCKERFILE_PATH=subtitle-service/Dockerfile
+RAILWAY_DOCKERFILE_PATH=Dockerfile.subtitle-service
 ```
 
 来源：[Dockerfiles](https://docs.railway.com/deploy/dockerfiles)

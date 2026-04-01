@@ -2,6 +2,6 @@ services:
   - type: web
     name: gemini-video2text-subtitle-service
     runtime: docker
-    dockerfilePath: ./subtitle-service/Dockerfile
+    dockerfilePath: ./Dockerfile.subtitle-service
     plan: starter
     healthCheckPath: /health
