@@ -1,3 +1,8 @@
+import {
+  MAX_CHARS_PER_CHUNK,
+  MAX_ENTRIES_PER_CHUNK,
+  MAX_SECONDS_PER_CHUNK,
+} from "@/lib/transcript/constants";
 import type { TranscriptEntry } from "@/types/video-processor";
 
 export type TranscriptChunk = {
@@ -7,10 +12,6 @@ export type TranscriptChunk = {
   start: number;
   end: number;
 };
-
-const MAX_CHARS_PER_CHUNK = 12000;
-const MAX_ENTRIES_PER_CHUNK = 180;
-const MAX_SECONDS_PER_CHUNK = 8 * 60;
 
 export function chunkTranscriptEntries(entries: TranscriptEntry[]) {
   const chunks: TranscriptChunk[] = [];
@@ -23,12 +24,10 @@ export function chunkTranscriptEntries(entries: TranscriptEntry[]) {
       return;
     }
 
-    const text = current.map((entry) => entry.text).join("\n");
-
     chunks.push({
       index: chunks.length,
       entries: current,
-      text,
+      text: current.map((entry) => entry.text).join("\n"),
       start: current[0]?.start ?? 0,
       end: current[current.length - 1]?.end ?? current[0]?.end ?? 0,
     });

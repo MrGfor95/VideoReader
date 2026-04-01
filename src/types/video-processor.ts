@@ -11,10 +11,15 @@ export type Speaker = {
 };
 
 export type DialogueBlock = {
+  chapterTitle?: string;
   title?: string;
   speaker: string;
   text: string;
   timecode?: string;
+  questionSpeaker?: string;
+  question?: string;
+  answerSpeaker?: string;
+  answer?: string;
 };
 
 export type ProcessRequest = {

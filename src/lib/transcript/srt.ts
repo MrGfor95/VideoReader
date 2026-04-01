@@ -1,15 +1,5 @@
+import { parseTimestamp } from "@/lib/transcript/timecode";
 import type { TranscriptEntry } from "@/types/video-processor";
-
-function timestampToSeconds(input: string) {
-  const normalized = input.replace(",", ".");
-  const [hours, minutes, seconds] = normalized.split(":");
-
-  return (
-    Number(hours) * 3600 +
-    Number(minutes) * 60 +
-    Number.parseFloat(seconds)
-  );
-}
 
 export function parseSrt(content: string): TranscriptEntry[] {
   const blocks = content
@@ -42,23 +32,10 @@ export function parseSrt(content: string): TranscriptEntry[] {
     return [
       {
         index: Number(lines[0]) || index + 1,
-        start: timestampToSeconds(start),
-        end: timestampToSeconds(end),
+        start: parseTimestamp(start),
+        end: parseTimestamp(end),
         text,
       },
     ];
   });
-}
-
-export function formatTimecode(seconds: number) {
-  const wholeSeconds = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(wholeSeconds / 3600)
-    .toString()
-    .padStart(2, "0");
-  const minutes = Math.floor((wholeSeconds % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const remaining = (wholeSeconds % 60).toString().padStart(2, "0");
-
-  return `${hours}:${minutes}:${remaining}`;
 }

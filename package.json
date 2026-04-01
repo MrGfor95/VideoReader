@@ -4,7 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:subtitle": "tsx subtitle-service/src/index.ts",
+    "start:subtitle": "tsx subtitle-service/src/index.ts",
     "build": "next build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint"
   },
@@ -18,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@opennextjs/cloudflare": "^1.18.0",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/node": "^24.6.0",
     "@types/react": "^19.2.2",
@@ -25,6 +32,8 @@
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.1.5",
     "tailwindcss": "^4.1.12",
-    "typescript": "^5.9.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.79.0"
   }
 }

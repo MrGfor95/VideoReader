@@ -1,0 +1,2 @@
+NEXTJS_ENV=development
+PROCESS_SERVICE_URL=http://127.0.0.1:8788

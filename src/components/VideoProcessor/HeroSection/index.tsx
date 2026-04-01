@@ -9,9 +9,6 @@ export default function HeroSection() {
         <h1 className="max-w-4xl text-4xl leading-tight text-white md:text-6xl">
           把 YouTube 视频转换成分段成文、流式展开的 AI 对话文档
         </h1>
-        {/* <p className="max-w-3xl text-base leading-7 text-slate-300 md:text-lg">
-          顶部展示项目标题，中段只输入 YouTube URL 并启动处理，底部实时渲染流式生成的文档内容。
-        </p> */}
       </div>
     </section>
   );

@@ -77,6 +77,7 @@ export function ensureGlobalProxyDispatcher() {
 export async function fetchWithProxy(input: string | URL, init?: RequestInit) {
   ensureGlobalProxyDispatcher();
   const agent = getProxyAgent();
+
   return fetch(input, {
     ...init,
     dispatcher: agent ?? undefined,

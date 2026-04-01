@@ -1,10 +1,10 @@
 "use client";
 
-import { downloadHtmlDocument } from "@/lib/export-html";
 import HeroSection from "@/components/VideoProcessor/HeroSection";
 import PreviewPanel from "@/components/VideoProcessor/PreviewPanel";
 import ProcessorForm from "@/components/VideoProcessor/ProcessorForm";
-import useVideoProcessor from "@/components/VideoProcessor/useVideoProcessor";
+import useVideoProcessor from "@/components/VideoProcessor/VideoProcessorPage/useVideoProcessor";
+import { downloadHtmlDocument } from "@/lib/document";
 
 export default function VideoProcessorPage() {
   const {
@@ -40,7 +40,12 @@ export default function VideoProcessorPage() {
         statusMessage={statusMessage}
         youtubeUrl={youtubeUrl}
       />
-      <PreviewPanel result={result} />
+      <PreviewPanel
+        chunkProgress={chunkProgress}
+        loading={loading}
+        result={result}
+        statusMessage={statusMessage}
+      />
     </main>
   );
 }

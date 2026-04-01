@@ -1,34 +1,24 @@
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
-import { fetchWithProxy, getProxyUrl } from "@/lib/server-proxy";
+import { fetchWithProxy, getProxyUrl } from "@/lib/network/proxy";
+import {
+  PREFERRED_YTDLP_FETCH_LANGUAGES,
+  PREFERRED_YTDLP_LANGUAGES,
+} from "@/lib/transcript/constants";
+import { normalizeCaptionItems } from "@/lib/transcript/shared";
+import { parseTimestamp } from "@/lib/transcript/timecode";
+import type {
+  CaptionItem,
+  SubtitleFormat,
+  TranscriptFetchResult,
+  YtDlpInfo,
+} from "@/lib/transcript/types";
 
 const execFileAsync = promisify(execFile);
 let resolvedPythonCommand: string[] | null = null;
-
-type CaptionItem = {
-  start: number;
-  dur: number;
-  text: string;
-};
-
-type SubtitleFormat = {
-  ext?: string;
-  url?: string;
-};
-
-type YtDlpInfo = {
-  subtitles?: Record<string, SubtitleFormat[]>;
-  automatic_captions?: Record<string, SubtitleFormat[]>;
-};
-
-type YtDlpTranscriptResult = {
-  captions: CaptionItem[];
-  diagnostics: string[];
-};
 
 async function canRunYtDlp(command: string[]) {
   try {
@@ -163,27 +153,10 @@ function parseJson3(content: string): CaptionItem[] {
   }
 }
 
-function parseTimestamp(value: string) {
-  const normalized = value.replace(",", ".");
-  const parts = normalized.split(":").map((item) => Number.parseFloat(item));
-
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  }
-
-  if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  }
-
-  return parts[0] ?? 0;
-}
-
 function rankLanguages(entries: Array<[string, SubtitleFormat[]]>) {
-  const preference = ["en-orig", "en", "en-US"];
-
   return entries.sort(([left], [right]) => {
-    const leftIndex = preference.findIndex((item) => left.startsWith(item));
-    const rightIndex = preference.findIndex((item) => right.startsWith(item));
+    const leftIndex = PREFERRED_YTDLP_FETCH_LANGUAGES.findIndex((item) => left.startsWith(item));
+    const rightIndex = PREFERRED_YTDLP_FETCH_LANGUAGES.findIndex((item) => right.startsWith(item));
     const safeLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
     const safeRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
 
@@ -196,6 +169,7 @@ function chooseSubtitleFormat(tracks: SubtitleFormat[]) {
 
   for (const format of formats) {
     const found = tracks.find((track) => track.ext === format && track.url);
+
     if (found?.url) {
       return found;
     }
@@ -257,7 +231,7 @@ async function downloadSubtitleWithYtDlp(videoUrl: string) {
     "--write-auto-subs",
     "--write-subs",
     "--sub-langs",
-    "en-orig,en,en-US,zh-Hans,zh-CN,zh",
+    PREFERRED_YTDLP_LANGUAGES,
     "--sub-format",
     "json3/vtt",
     "-o",
@@ -287,11 +261,7 @@ async function downloadSubtitleWithYtDlp(videoUrl: string) {
     }
 
     const files = await readdir(tempDir);
-    const subtitleFile = files.find(
-      (file) =>
-        file.endsWith(".json3") ||
-        file.endsWith(".vtt"),
-    );
+    const subtitleFile = files.find((file) => file.endsWith(".json3") || file.endsWith(".vtt"));
 
     if (!subtitleFile) {
       return {
@@ -331,10 +301,7 @@ async function fetchFromGroup(group?: Record<string, SubtitleFormat[]>) {
     const subtitles = await fetchSubtitleByFormat(preferredTrack);
 
     if (subtitles.length) {
-      return subtitles.map((item) => ({
-        ...item,
-        text: item.text.replace(/\s+/g, " ").trim(),
-      }));
+      return normalizeCaptionItems(subtitles);
     }
   }
 
@@ -356,7 +323,7 @@ export async function fetchTranscriptWithYtDlp(videoUrl: string) {
   }
 }
 
-export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<YtDlpTranscriptResult> {
+export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<TranscriptFetchResult> {
   const diagnostics: string[] = [`yt-dlp 当前代理：${getProxyUrl() ?? "未配置代理"}`];
 
   try {
@@ -394,21 +361,14 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
     }
 
     const downloaded = await downloadSubtitleWithYtDlp(videoUrl);
-
     diagnostics.push(...downloaded.diagnostics);
 
     if (downloaded.content) {
-      const parsed =
-        downloaded.ext === "json3"
-          ? parseJson3(downloaded.content)
-          : parseVtt(downloaded.content);
+      const parsed = downloaded.ext === "json3" ? parseJson3(downloaded.content) : parseVtt(downloaded.content);
 
       if (parsed.length) {
         return {
-          captions: parsed.map((item) => ({
-            ...item,
-            text: item.text.replace(/\s+/g, " ").trim(),
-          })),
+          captions: normalizeCaptionItems(parsed),
           diagnostics: [...diagnostics, "yt-dlp 文件下载回退解析成功"],
         };
       }
@@ -421,10 +381,7 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
   } catch (error) {
     return {
       captions: [],
-      diagnostics: [
-        ...diagnostics,
-        `yt-dlp 执行失败：${error instanceof Error ? error.message : "未知错误"}`,
-      ],
+      diagnostics: [...diagnostics, `yt-dlp 执行失败：${error instanceof Error ? error.message : "未知错误"}`],
     };
   }
 }

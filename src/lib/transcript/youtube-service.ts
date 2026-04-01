@@ -1,36 +1,15 @@
 import { getSubtitles } from "youtube-captions-scraper";
-import { fetchWithProxy, getProxyUrl } from "@/lib/server-proxy";
-
-type CaptionItem = {
-  start: number;
-  dur: number;
-  text: string;
-};
-
-type CaptionTrack = {
-  baseUrl: string;
-  languageCode?: string;
-  name?: {
-    simpleText?: string;
-  };
-  kind?: string;
-  vssId?: string;
-};
-
-type TranscriptFetchResult = {
-  captions: CaptionItem[];
-  diagnostics: string[];
-};
-
-function decodeHtmlEntities(text: string) {
-  return text
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll("&#39;", "'");
-}
+import { fetchWithProxy, getProxyUrl } from "@/lib/network/proxy";
+import {
+  PREFERRED_CAPTION_LANGUAGES,
+  YOUTUBE_TRACK_HEADERS,
+  YOUTUBE_WATCH_HEADERS,
+} from "@/lib/transcript/constants";
+import {
+  decodeHtmlEntities,
+  normalizeCaptionItems,
+} from "@/lib/transcript/shared";
+import type { CaptionItem, CaptionTrack, TranscriptFetchResult } from "@/lib/transcript/types";
 
 function parseTimedTextXml(xml: string): CaptionItem[] {
   const textMatches = [...xml.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)];
@@ -82,8 +61,6 @@ function extractCaptionTracksFromHtml(html: string): CaptionTrack[] {
 }
 
 function sortCaptionTracks(tracks: CaptionTrack[]) {
-  const preference = ["en-orig", "en", "en-US", "zh-Hans", "zh-CN", "zh"];
-
   return [...tracks].sort((left, right) => {
     const leftAuto = left.kind === "asr" ? 1 : 0;
     const rightAuto = right.kind === "asr" ? 1 : 0;
@@ -92,9 +69,8 @@ function sortCaptionTracks(tracks: CaptionTrack[]) {
       return leftAuto - rightAuto;
     }
 
-    const leftIndex = preference.findIndex((item) => left.languageCode?.startsWith(item));
-    const rightIndex = preference.findIndex((item) => right.languageCode?.startsWith(item));
-
+    const leftIndex = PREFERRED_CAPTION_LANGUAGES.findIndex((item) => left.languageCode?.startsWith(item));
+    const rightIndex = PREFERRED_CAPTION_LANGUAGES.findIndex((item) => right.languageCode?.startsWith(item));
     const safeLeftIndex = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
     const safeRightIndex = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
 
@@ -105,11 +81,7 @@ function sortCaptionTracks(tracks: CaptionTrack[]) {
 async function fetchCaptionTracks(videoId: string) {
   try {
     const response = await fetchWithProxy(`https://www.youtube.com/watch?v=${videoId}&hl=zh-CN`, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-      },
+      headers: YOUTUBE_WATCH_HEADERS,
       cache: "no-store",
     });
 
@@ -146,10 +118,7 @@ async function fetchTrackTranscript(track: CaptionTrack): Promise<CaptionItem[]>
   url.searchParams.set("fmt", "srv3");
 
   const response = await fetchWithProxy(url.toString(), {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-    },
+    headers: YOUTUBE_TRACK_HEADERS,
     cache: "no-store",
   });
 
@@ -157,8 +126,7 @@ async function fetchTrackTranscript(track: CaptionTrack): Promise<CaptionItem[]>
     return [];
   }
 
-  const xml = await response.text();
-  return parseTimedTextXml(xml);
+  return parseTimedTextXml(await response.text());
 }
 
 async function fetchTranscriptFromTracks(videoId: string): Promise<TranscriptFetchResult> {
@@ -171,10 +139,7 @@ async function fetchTranscriptFromTracks(videoId: string): Promise<TranscriptFet
 
       if (subtitles.length) {
         return {
-          captions: subtitles.map((item) => ({
-            ...item,
-            text: item.text.replace(/\s+/g, " ").trim(),
-          })),
+          captions: normalizeCaptionItems(subtitles),
           diagnostics: [
             ...diagnostics,
             `轨道抓取成功：${track.languageCode ?? "unknown"}${track.kind === "asr" ? "（自动字幕）" : ""}`,
@@ -194,9 +159,8 @@ async function fetchTranscriptFromTracks(videoId: string): Promise<TranscriptFet
 
 async function fetchTranscriptWithScraperDetailed(videoId: string): Promise<TranscriptFetchResult> {
   const diagnostics: string[] = [];
-  const candidates = ["en-orig", "en", "en-US", "zh-Hans", "zh-CN", "zh"];
 
-  for (const lang of candidates) {
+  for (const lang of PREFERRED_CAPTION_LANGUAGES) {
     try {
       const subtitles = (await getSubtitles({
         videoID: videoId,
@@ -205,12 +169,9 @@ async function fetchTranscriptWithScraperDetailed(videoId: string): Promise<Tran
 
       diagnostics.push(`youtube-captions-scraper 尝试语言 ${lang}：${subtitles.length} 条`);
 
-      if (subtitles?.length) {
+      if (subtitles.length) {
         return {
-          captions: subtitles.map((item) => ({
-            ...item,
-            text: item.text.replace(/\s+/g, " ").trim(),
-          })),
+          captions: normalizeCaptionItems(subtitles),
           diagnostics,
         };
       }
@@ -249,7 +210,7 @@ export function extractVideoId(url: string) {
   }
 }
 
-export async function fetchYouTubeTranscript(videoId: string): Promise<CaptionItem[]> {
+export async function fetchYouTubeTranscript(videoId: string) {
   const fromTracks = await fetchTranscriptFromTracks(videoId);
 
   if (fromTracks.captions.length) {
