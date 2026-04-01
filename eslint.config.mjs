@@ -1,8 +1,16 @@
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTypescript from "eslint-config-next/typescript";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { FlatCompat } from "@eslint/eslintrc";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
 
 const ignoreRules = {
-  ignores: [".next/**", ".open-next/**"],
+  ignores: [".next/**", ".open-next/**", ".wrangler/**", "next-env.d.ts"],
 };
 
 const boundaryRules = {
@@ -34,6 +42,10 @@ const boundaryRules = {
   },
 };
 
-const eslintConfig = [ignoreRules, ...nextVitals, ...nextTypescript, boundaryRules];
+const eslintConfig = [
+  ignoreRules,
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  boundaryRules,
+];
 
 export default eslintConfig;

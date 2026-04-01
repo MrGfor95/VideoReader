@@ -7,18 +7,18 @@
     "dev:subtitle": "tsx subtitle-service/src/index.ts",
     "start:subtitle": "tsx subtitle-service/src/index.ts",
     "build": "next build",
-    "preview": "npx opennextjs-cloudflare build && npx wrangler dev",
-    "deploy": "npx opennextjs-cloudflare build && npx wrangler deploy",
-    "upload": "npx opennextjs-cloudflare build && npx wrangler deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "next": "^16.1.5",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "next": "15.5.14",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "tsx": "^4.21.0",
     "undici": "^7.24.6",
     "youtube-captions-scraper": "^2.0.3"
@@ -31,7 +31,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "eslint": "^9.38.0",
-    "eslint-config-next": "^16.1.5",
+    "eslint-config-next": "15.5.14",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.9.3",
     "wrangler": "^4.79.0"
