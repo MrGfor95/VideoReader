@@ -57,7 +57,7 @@ yarn preview
 
 1. 构建 Next.js
 2. 生成 OpenNext Worker bundle
-3. 用 Wrangler 在本地启动接近 Cloudflare 的运行环境
+3. 用 `wrangler dev` 在本地启动接近 Cloudflare 的运行环境
 
 ## 环境变量配置方式
 
