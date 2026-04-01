@@ -45,6 +45,22 @@ CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 ```
 
+## 首次发布前
+
+如果这是你这个 Cloudflare 账号第一次发布 Worker，还需要先注册一个 `workers.dev` 子域。
+
+Wrangler 报这类错误时：
+
+```text
+You need to register a workers.dev subdomain before publishing to workers.dev
+```
+
+打开 Cloudflare 给出的 onboarding 链接，完成一次 `workers.dev` 子域注册后，再重新执行：
+
+```bash
+yarn deploy
+```
+
 ## 本地预览
 
 在真正 deploy 前，先跑一遍 Cloudflare 侧预览：
