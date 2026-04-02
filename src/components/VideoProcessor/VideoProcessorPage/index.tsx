@@ -17,6 +17,7 @@ export default function VideoProcessorPage() {
     progress,
     chunkProgress,
     logs,
+    loadDebugPreview,
     setYoutubeUrl,
     setPreferredLanguage,
     handleSubmit,
@@ -32,11 +33,13 @@ export default function VideoProcessorPage() {
         loading={loading}
         logs={logs}
         onDownload={() => result && downloadHtmlDocument(result)}
+        onLoadDebugPreview={loadDebugPreview}
         onPreferredLanguageChange={setPreferredLanguage}
         onSubmit={handleSubmit}
         onYoutubeUrlChange={setYoutubeUrl}
         preferredLanguage={preferredLanguage}
         progress={progress}
+        showDebugPreview={process.env.NODE_ENV !== "production"}
         statusMessage={statusMessage}
         youtubeUrl={youtubeUrl}
       />

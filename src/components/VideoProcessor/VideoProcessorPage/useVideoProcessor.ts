@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import debugPreviewFixture from "@/components/VideoProcessor/VideoProcessorPage/debugPreviewFixture";
 import type { ProcessResponse, StreamEvent } from "@/types/video-processor";
 
 type UseVideoProcessorReturn = {
@@ -13,6 +14,7 @@ type UseVideoProcessorReturn = {
   progress: number;
   chunkProgress: string;
   logs: string[];
+  loadDebugPreview: () => void;
   setYoutubeUrl: (value: string) => void;
   setPreferredLanguage: (value: string) => void;
   handleSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
@@ -59,6 +61,19 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
   const [progress, setProgress] = useState(0);
   const [chunkProgress, setChunkProgress] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+
+  function loadDebugPreview() {
+    setLoading(false);
+    setError("");
+    setResult(debugPreviewFixture);
+    setStatusMessage("正在回放样例文档。");
+    setProgress(0.78);
+    setChunkProgress("样例文档 · 使用本地调试文本渐进渲染。");
+    setLogs([
+      "已加载英伟达访谈样例。",
+      "正在以逐段、逐字方式回放生成效果。",
+    ]);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -166,6 +181,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     progress,
     chunkProgress,
     logs,
+    loadDebugPreview,
     setYoutubeUrl,
     setPreferredLanguage,
     handleSubmit,

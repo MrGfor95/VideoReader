@@ -1,5 +1,6 @@
 import DialogueBlockCard from "@/components/VideoProcessor/DialogueBlockCard";
 import PreviewStatusBar from "@/components/VideoProcessor/PreviewStatusBar";
+import useProgressivePreview from "@/components/VideoProcessor/PreviewDocument/useProgressivePreview";
 import type { ProcessResponse } from "@/types/video-processor";
 
 type PreviewDocumentProps = {
@@ -17,21 +18,24 @@ export default function PreviewDocument({
   statusMessage,
   onLatestBlockRef,
 }: PreviewDocumentProps) {
+  const { displayResult, isAnimating } = useProgressivePreview({ result });
+  const visibleResult = displayResult;
+
   return (
     <div className="mt-6 flex flex-col gap-6">
       <PreviewStatusBar
-        loading={loading}
+        loading={loading || isAnimating}
         progressLabel={progressLabel}
         statusMessage={statusMessage}
       />
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">标题</p>
-        <h3 className="mt-2 text-3xl leading-tight text-white">{result.title}</h3>
-        <p className="mt-4 text-sm leading-7 text-slate-300">{result.summary}</p>
-        {result.metadata.stats ? (
+        <h3 className="mt-2 text-3xl leading-tight text-white">{visibleResult.title}</h3>
+        <p className="mt-4 text-sm leading-7 text-slate-300">{visibleResult.summary}</p>
+        {visibleResult.metadata.stats ? (
           <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-            {`共 ${result.metadata.stats.chunkCount} 段 · ${result.metadata.stats.transcriptEntries} 条字幕 · 约 ${result.metadata.stats.estimatedMinutes} 分钟`}
+            {`共 ${visibleResult.metadata.stats.chunkCount} 段 · ${visibleResult.metadata.stats.transcriptEntries} 条字幕 · 约 ${visibleResult.metadata.stats.estimatedMinutes} 分钟`}
           </p>
         ) : null}
       </section>
@@ -39,8 +43,8 @@ export default function PreviewDocument({
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">人物</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {result.speakers.length ? (
-            result.speakers.map((speaker) => (
+          {visibleResult.speakers.length ? (
+            visibleResult.speakers.map((speaker) => (
               <span
                 key={speaker.name}
                 className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white"
@@ -59,13 +63,13 @@ export default function PreviewDocument({
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">对话</p>
         <div className="mt-4 flex flex-col gap-4">
-          {result.dialogueBlocks.map((block, index, blocks) => (
+          {visibleResult.dialogueBlocks.map((block, index, blocks) => (
             <DialogueBlockCard
               key={`${block.speaker}-${index}`}
               block={block}
               index={index}
               isLatest={index >= Math.max(blocks.length - 2, 0)}
-              loading={loading}
+              loading={loading || isAnimating}
               onLatestRef={onLatestBlockRef}
               showChapterTitle={Boolean(
                 block.chapterTitle && block.chapterTitle !== blocks[index - 1]?.chapterTitle,
@@ -73,7 +77,7 @@ export default function PreviewDocument({
             />
           ))}
 
-          {loading
+          {loading || isAnimating
             ? Array.from({ length: 2 }).map((_, index) => (
                 <article
                   key={`placeholder-${index}`}
