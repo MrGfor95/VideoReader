@@ -72,7 +72,7 @@ export async function processTranscriptChunk({
   const gemini = getClient();
 
   if (!gemini) {
-    return buildFallbackResult(transcriptText);
+    return buildFallbackResult(transcriptText, undefined, preferredLanguage);
   }
 
   const model = gemini.getGenerativeModel({
@@ -92,7 +92,7 @@ export async function processTranscriptChunk({
     text = response.response.text();
   } catch (error) {
     if (isGeminiQuotaExceededError(error)) {
-      return buildQuotaFallbackResult(transcriptText);
+      return buildQuotaFallbackResult(transcriptText, preferredLanguage);
     }
 
     throw error;
@@ -100,9 +100,9 @@ export async function processTranscriptChunk({
 
   try {
     const parsed = JSON.parse(parseStrictJson(text)) as Partial<AiTranscriptResult>;
-    return normalizeAiResult(parsed);
+    return normalizeAiResult(parsed, preferredLanguage);
   } catch {
-    const fallback = buildFallbackResult(transcriptText);
+    const fallback = buildFallbackResult(transcriptText, undefined, preferredLanguage);
 
     return {
       ...fallback,
