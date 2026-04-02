@@ -20,6 +20,23 @@ import type {
 const execFileAsync = promisify(execFile);
 let resolvedPythonCommand: string[] | null = null;
 
+function looksLikeYtDlpBinary(value: string) {
+  return /(^|[\\/])(yt-dlp|yt_dlp)(\.exe)?$/i.test(value);
+}
+
+function getConfiguredYtDlpCandidates(value: string) {
+  if (!value.trim()) {
+    return [];
+  }
+
+  return looksLikeYtDlpBinary(value)
+    ? [[value]]
+    : [
+        [value, "-m", "yt_dlp"],
+        [value],
+      ];
+}
+
 async function canRunYtDlp(command: string[]) {
   try {
     const [executable, ...args] = command;
@@ -41,10 +58,15 @@ async function resolvePythonForYtDlp() {
   const candidates: string[][] = [];
 
   if (configured) {
-    candidates.push([configured, "-m", "yt_dlp"]);
+    candidates.push(...getConfiguredYtDlpCandidates(configured));
   }
 
   candidates.push(
+    ["yt-dlp"],
+    ["yt_dlp"],
+    ["python3", "-m", "yt_dlp"],
+    ["/usr/bin/python3", "-m", "yt_dlp"],
+    ["/usr/local/bin/python3", "-m", "yt_dlp"],
     ["C:\\Python312\\python.exe", "-m", "yt_dlp"],
     ["py", "-m", "yt_dlp"],
     ["python", "-m", "yt_dlp"],
@@ -68,7 +90,7 @@ async function resolvePythonForYtDlp() {
   }
 
   throw new Error(
-    "未找到可用的 yt-dlp Python 解释器。可通过环境变量 PYTHON_FOR_YTDLP 指定，例如 C:\\Python312\\python.exe",
+    "未找到可用的 yt-dlp 执行环境。可通过环境变量 PYTHON_FOR_YTDLP 指定，例如 Linux 用 python3 或 /usr/bin/python3，Windows 用 C:\\Python312\\python.exe",
   );
 }
 
