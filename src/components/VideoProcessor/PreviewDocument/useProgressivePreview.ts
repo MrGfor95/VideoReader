@@ -13,13 +13,13 @@ type UseProgressivePreviewReturn = {
   pendingBlockCount: number;
 };
 
-const TICK_MS = 95;
-const TITLE_STEP = 1;
-const SUMMARY_STEP = 3;
-const QUESTION_STEP = 1;
-const ANSWER_STEP = 2;
-const TEXT_STEP = 2;
-const BLOCK_PAUSE_TICKS = 5;
+const TICK_MS = 64;
+const TITLE_STEP = 2;
+const SUMMARY_STEP = 4;
+const QUESTION_STEP = 2;
+const ANSWER_STEP = 3;
+const TEXT_STEP = 3;
+const BLOCK_PAUSE_TICKS = 3;
 
 function keepPrefix(current: string | undefined, target: string | undefined) {
   if (!current || !target) {
@@ -161,6 +161,10 @@ export default function useProgressivePreview({
             };
           }),
         };
+
+        if (next.title !== targetResult.title) {
+          return next;
+        }
 
         for (let index = 0; index < next.dialogueBlocks.length; index += 1) {
           const targetBlock = targetResult.dialogueBlocks[index];
