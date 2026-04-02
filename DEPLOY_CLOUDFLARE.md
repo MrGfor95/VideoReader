@@ -21,6 +21,7 @@
 Cloudflare 前端至少需要：
 
 ```text
+PROCESS_SERVICE_MODE=remote
 PROCESS_SERVICE_URL=https://your-subtitle-service.up.railway.app
 ```
 
@@ -89,6 +90,7 @@ yarn preview
 6. 添加：
 
 ```text
+PROCESS_SERVICE_MODE=remote
 PROCESS_SERVICE_URL=https://your-subtitle-service.up.railway.app
 ```
 

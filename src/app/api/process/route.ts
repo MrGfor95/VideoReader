@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProcessServiceUrl } from "@/lib/network";
+import { getProcessServiceMode, getProcessServiceUrl } from "@/lib/network";
 import type { ProcessRequest } from "@/types/video-processor";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
-
-function isLocalProcessServiceUrl(value: string) {
-  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(value);
-}
 
 function buildStreamErrorEvent(message: string) {
   return `${JSON.stringify({ type: "error", message })}\n`;
@@ -69,19 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     const processServiceUrl = getProcessServiceUrl();
-
-    if (
-      isLocalProcessServiceUrl(processServiceUrl) &&
-      process.env.NODE_ENV === "production"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "字幕服务地址未配置到线上环境，请在 Cloudflare Worker 中设置 PROCESS_SERVICE_URL。",
-        },
-        { status: 500 },
-      );
-    }
+    const processServiceMode = getProcessServiceMode();
 
     const endpoint = new URL("/process", processServiceUrl);
     const upstream = await fetch(endpoint, {
@@ -125,6 +109,7 @@ export async function POST(request: NextRequest) {
           upstream.headers.get("content-type") ?? "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
+        "X-Process-Service-Mode": processServiceMode,
       },
     });
   } catch (error) {
