@@ -68,6 +68,39 @@ function applyAliasesToSpeakers(speakers: Speaker[], aliasMap: Map<string, strin
   );
 }
 
+function getLatestSpecificRoleName(
+  blocks: DialogueBlock[],
+  key: "questionSpeaker" | "answerSpeaker",
+) {
+  const matches = blocks
+    .map((block) => block[key])
+    .filter((speaker): speaker is string => Boolean(speaker && isSpecificSpeakerLabel(speaker)));
+
+  return matches.length ? matches[matches.length - 1] : null;
+}
+
+function rebuildSpeakersFromBlocks(response: ProcessResponse) {
+  const merged = new Map<string, Speaker>();
+
+  for (const speaker of response.speakers) {
+    merged.set(speaker.name, speaker);
+  }
+
+  for (const block of response.dialogueBlocks) {
+    for (const name of [block.questionSpeaker, block.answerSpeaker, block.speaker]) {
+      if (!name) {
+        continue;
+      }
+
+      if (!merged.has(name)) {
+        merged.set(name, { name });
+      }
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
 export function applySpeakerAliases(
   response: ProcessResponse,
   aliasMap: Map<string, string>,
@@ -82,6 +115,51 @@ export function applySpeakerAliases(
     dialogueBlocks: response.dialogueBlocks.map((block) =>
       applyAliasesToDialogueBlock(block, aliasMap),
     ),
+  };
+}
+
+export function backfillCanonicalRoleSpeakers(response: ProcessResponse): ProcessResponse {
+  const canonicalQuestionSpeaker = getLatestSpecificRoleName(
+    response.dialogueBlocks,
+    "questionSpeaker",
+  );
+  const canonicalAnswerSpeaker = getLatestSpecificRoleName(
+    response.dialogueBlocks,
+    "answerSpeaker",
+  );
+
+  if (!canonicalQuestionSpeaker && !canonicalAnswerSpeaker) {
+    return response;
+  }
+
+  const nextResponse = {
+    ...response,
+    dialogueBlocks: response.dialogueBlocks.map((block) => {
+      const questionSpeaker =
+        block.questionSpeaker && isGenericSpeakerLabel(block.questionSpeaker) && canonicalQuestionSpeaker
+          ? canonicalQuestionSpeaker
+          : block.questionSpeaker;
+      const answerSpeaker =
+        block.answerSpeaker && isGenericSpeakerLabel(block.answerSpeaker) && canonicalAnswerSpeaker
+          ? canonicalAnswerSpeaker
+          : block.answerSpeaker;
+      const speaker =
+        block.speaker && isGenericSpeakerLabel(block.speaker) && canonicalAnswerSpeaker
+          ? canonicalAnswerSpeaker
+          : block.speaker;
+
+      return {
+        ...block,
+        questionSpeaker,
+        answerSpeaker,
+        speaker,
+      };
+    }),
+  };
+
+  return {
+    ...nextResponse,
+    speakers: rebuildSpeakersFromBlocks(nextResponse),
   };
 }
 

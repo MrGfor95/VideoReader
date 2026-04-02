@@ -9,6 +9,7 @@ import {
 import type { ProcessResponse } from "@/types/video-processor";
 import {
   applySpeakerAliases,
+  backfillCanonicalRoleSpeakers,
   buildSpeakerAliasMap,
   buildKnownSpeakers,
   buildStats,
@@ -95,11 +96,13 @@ async function processTranscriptChunks(input: {
     const previousAggregate = aggregate ? applySpeakerAliases(aggregate, aliasMap) : null;
 
     chunkResults.push(aiResult);
+    aggregate = backfillCanonicalRoleSpeakers(
+      mergeProcessResponses(previousAggregate, partialResponse, aiResult.summary),
+    );
     knownSpeakers = buildKnownSpeakers(
       knownSpeakers.map((speaker) => aliasMap.get(speaker) ?? speaker),
-      partialResponse,
+      aggregate,
     );
-    aggregate = mergeProcessResponses(previousAggregate, partialResponse, aiResult.summary);
 
     streamEvent(input.controller, {
       type: "partial",
