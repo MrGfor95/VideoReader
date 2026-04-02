@@ -9,6 +9,53 @@ function isLocalProcessServiceUrl(value: string) {
   return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(value);
 }
 
+function buildStreamErrorEvent(message: string) {
+  return `${JSON.stringify({ type: "error", message })}\n`;
+}
+
+function createProxyStream(upstream: Response) {
+  const encoder = new TextEncoder();
+  const reader = upstream.body?.getReader();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      if (!reader) {
+        controller.enqueue(
+          encoder.encode(buildStreamErrorEvent("字幕服务未返回可读取的流。")),
+        );
+        controller.close();
+        return;
+      }
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+
+          if (done) {
+            break;
+          }
+
+          if (value) {
+            controller.enqueue(value);
+          }
+        }
+      } catch (error) {
+        console.error("process proxy stream failed", error);
+        controller.enqueue(
+          encoder.encode(
+            buildStreamErrorEvent("字幕服务连接中断，请稍后重试。"),
+          ),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+    cancel() {
+      reader?.cancel().catch(() => undefined);
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ProcessRequest;
@@ -49,17 +96,30 @@ export async function POST(request: NextRequest) {
       cache: "no-store",
     });
 
-    if (!upstream.ok || !upstream.body) {
-      let payload: unknown = { error: "字幕服务暂不可用，请稍后重试。" };
+    if (!upstream.ok) {
+      const fallbackMessage =
+        upstream.status >= 500
+          ? "字幕服务暂不可用，请稍后重试。"
+          : "请求字幕服务失败，请检查输入或稍后再试。";
+      let payload: unknown = { error: fallbackMessage };
 
       try {
-        payload = await upstream.json();
-      } catch {}
+        const contentType = upstream.headers.get("content-type") ?? "";
+
+        if (contentType.includes("application/json")) {
+          payload = await upstream.json();
+        } else {
+          const text = await upstream.text();
+          payload = { error: text || fallbackMessage };
+        }
+      } catch {
+        payload = { error: fallbackMessage };
+      }
 
       return NextResponse.json(payload, { status: upstream.status || 502 });
     }
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(createProxyStream(upstream), {
       headers: {
         "Content-Type":
           upstream.headers.get("content-type") ?? "application/x-ndjson; charset=utf-8",

@@ -27,6 +27,28 @@ function getErrorMessage(payload: ProcessResponse | { error?: string }) {
   return "error" in payload ? payload.error ?? "处理失败。" : "处理失败。";
 }
 
+function normalizeSubmissionError(error: unknown) {
+  if (error instanceof Error) {
+    const message = error.message.trim();
+
+    if (!message) {
+      return "请求失败，请稍后重试。";
+    }
+
+    if (/network\s*error/i.test(message)) {
+      return "网络连接中断，字幕服务可能在处理中断开，请稍后重试。";
+    }
+
+    if (/failed to fetch/i.test(message) || /load failed/i.test(message)) {
+      return "无法连接字幕服务，请稍后重试。";
+    }
+
+    return message;
+  }
+
+  return "请求失败，请稍后重试。";
+}
+
 export default function useVideoProcessor(): UseVideoProcessorReturn {
   const [youtubeUrl, setYoutubeUrl] = useState(initialForm.youtubeUrl);
   const [preferredLanguage, setPreferredLanguage] = useState(initialForm.preferredLanguage);
@@ -128,9 +150,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
         }
       }
     } catch (submissionError) {
-      setError(
-        submissionError instanceof Error ? submissionError.message : "请求失败，请稍后重试。",
-      );
+      setError(normalizeSubmissionError(submissionError));
     } finally {
       setLoading(false);
     }
