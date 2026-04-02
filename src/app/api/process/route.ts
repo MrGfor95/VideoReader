@@ -52,6 +52,24 @@ function createProxyStream(upstream: Response) {
   });
 }
 
+function buildRouteErrorMessage(error: unknown, mode: string, endpoint?: string) {
+  const message = error instanceof Error ? error.message : "";
+  const isLocalMode = mode === "local";
+  const pointsToLocalhost = endpoint
+    ? /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(endpoint)
+    : false;
+
+  if (
+    isLocalMode &&
+    pointsToLocalhost &&
+    /fetch failed/i.test(message)
+  ) {
+    return "本地字幕服务未启动或无法连接，请先运行 `yarn dev:subtitle`，再重试。";
+  }
+
+  return message || "处理失败，请稍后重试。";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ProcessRequest;
@@ -117,10 +135,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "处理失败，请稍后重试。",
+        error: buildRouteErrorMessage(
+          error,
+          getProcessServiceMode(),
+          (() => {
+            try {
+              return getProcessServiceUrl();
+            } catch {
+              return "";
+            }
+          })(),
+        ),
       },
       { status: 500 },
     );
