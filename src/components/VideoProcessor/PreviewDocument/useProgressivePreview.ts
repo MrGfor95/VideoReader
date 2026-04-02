@@ -53,13 +53,27 @@ function syncBlockStructure(current: DialogueBlock | undefined, target: Dialogue
   };
 }
 
+function buildBlockSkeleton(target: DialogueBlock): DialogueBlock {
+  return {
+    ...target,
+    question: "",
+    answer: "",
+    text: "",
+  };
+}
+
 function syncResultStructure(current: ProcessResponse | null, target: ProcessResponse): ProcessResponse {
+  const currentBlockCount = current?.dialogueBlocks.length ?? 0;
+  const nextBlockCount = target.dialogueBlocks.length
+    ? Math.max(1, Math.min(currentBlockCount || 1, target.dialogueBlocks.length))
+    : 0;
+
   return {
     ...target,
     title: keepPrefix(current?.title, target.title),
     summary: keepPrefix(current?.summary, target.summary),
     speakers: target.speakers,
-    dialogueBlocks: target.dialogueBlocks.map((block, index) =>
+    dialogueBlocks: target.dialogueBlocks.slice(0, nextBlockCount).map((block, index) =>
       syncBlockStructure(current?.dialogueBlocks[index], block),
     ),
   };
@@ -73,8 +87,8 @@ function isBlockComplete(current: DialogueBlock, target: DialogueBlock) {
   );
 }
 
-function hasBlockStarted(block: DialogueBlock) {
-  return Boolean((block.question ?? "").trim() || (block.answer ?? "").trim() || (block.text ?? "").trim());
+function areAllVisibleBlocksComplete(current: ProcessResponse, target: ProcessResponse) {
+  return current.dialogueBlocks.every((block, index) => isBlockComplete(block, target.dialogueBlocks[index]));
 }
 
 function isResultComplete(current: ProcessResponse, target: ProcessResponse) {
@@ -112,6 +126,21 @@ export default function useProgressivePreview({
           return current;
         }
 
+        if (
+          current.dialogueBlocks.length < targetResult.dialogueBlocks.length &&
+          areAllVisibleBlocksComplete(current, targetResult)
+        ) {
+          pauseTicksRef.current = BLOCK_PAUSE_TICKS;
+
+          return {
+            ...current,
+            dialogueBlocks: [
+              ...current.dialogueBlocks,
+              buildBlockSkeleton(targetResult.dialogueBlocks[current.dialogueBlocks.length]),
+            ],
+          };
+        }
+
         const next: ProcessResponse = {
           ...current,
           title: stepText(current.title, targetResult.title, TITLE_STEP),
@@ -120,11 +149,12 @@ export default function useProgressivePreview({
               ? stepText(current.summary, targetResult.summary, SUMMARY_STEP)
               : current.summary,
           speakers: targetResult.speakers,
-          dialogueBlocks: targetResult.dialogueBlocks.map((block, index) => {
+          dialogueBlocks: current.dialogueBlocks.map((block, index) => {
+            const targetBlock = targetResult.dialogueBlocks[index];
             const currentBlock = current.dialogueBlocks[index] ?? syncBlockStructure(undefined, block);
 
             return {
-              ...block,
+              ...targetBlock,
               question: currentBlock.question,
               answer: currentBlock.answer,
               text: currentBlock.text,
@@ -132,7 +162,7 @@ export default function useProgressivePreview({
           }),
         };
 
-        for (let index = 0; index < targetResult.dialogueBlocks.length; index += 1) {
+        for (let index = 0; index < next.dialogueBlocks.length; index += 1) {
           const targetBlock = targetResult.dialogueBlocks[index];
           const currentBlock = next.dialogueBlocks[index];
 
@@ -182,11 +212,7 @@ export default function useProgressivePreview({
     };
   }, [targetResult]);
 
-  const pendingBlockCount = Math.max(
-    targetResult.dialogueBlocks.length -
-      displayResult.dialogueBlocks.filter((block) => hasBlockStarted(block)).length,
-    0,
-  );
+  const pendingBlockCount = targetResult.dialogueBlocks.length > displayResult.dialogueBlocks.length ? 1 : 0;
 
   return {
     displayResult,
