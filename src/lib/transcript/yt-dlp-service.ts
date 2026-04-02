@@ -20,6 +20,10 @@ import type {
 const execFileAsync = promisify(execFile);
 let resolvedPythonCommand: string[] | null = null;
 
+function getRemoteComponents() {
+  return process.env.YTDLP_REMOTE_COMPONENTS?.trim() || "ejs:github";
+}
+
 function looksLikeYtDlpBinary(value: string) {
   return /(^|[\\/])(yt-dlp|yt_dlp)(\.exe)?$/i.test(value);
 }
@@ -228,9 +232,10 @@ async function resolveYtDlpCookiesFile(tempDir?: string) {
 }
 
 async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempDir?: string) {
-  const args = [...baseArgs, "--js-runtimes", "node"];
+  const args = [...baseArgs, "--js-runtimes", "node", "--ignore-no-formats-error"];
   const proxyUrl = getProxyUrl();
   const cookiesPath = await resolveYtDlpCookiesFile(tempDir);
+  const remoteComponents = getRemoteComponents();
 
   if (proxyUrl) {
     args.push("--proxy", proxyUrl);
@@ -240,9 +245,13 @@ async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempD
     args.push("--cookies", cookiesPath);
   }
 
+  if (remoteComponents) {
+    args.push("--remote-components", remoteComponents);
+  }
+
   args.push(videoUrl);
 
-  return { args, proxyUrl, cookiesPath };
+  return { args, proxyUrl, cookiesPath, remoteComponents };
 }
 
 async function fetchSubtitleByFormat(track: SubtitleFormat) {
@@ -390,6 +399,7 @@ export async function fetchTranscriptWithYtDlp(videoUrl: string) {
 export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<TranscriptFetchResult> {
   const diagnostics: string[] = [`yt-dlp 当前代理：${getProxyUrl() ?? "未配置代理"}`];
   diagnostics.push(`yt-dlp cookies：${process.env.YTDLP_COOKIES_PATH || process.env.YTDLP_COOKIES_B64 || process.env.YTDLP_COOKIES ? "已配置" : "未配置"}`);
+  diagnostics.push(`yt-dlp remote components：${getRemoteComponents() || "未配置"}`);
 
   try {
     const { info, stderr } = await loadYtDlpInfo(videoUrl);
@@ -453,6 +463,10 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
 
     if (message.includes("Sign in to confirm you’re not a bot")) {
       hints.push("YouTube 触发了反爬验证。建议在 Railway 配置代理，或增加 YTDLP_COOKIES_B64 / YTDLP_COOKIES / YTDLP_COOKIES_PATH。");
+    }
+
+    if (message.includes("Requested format is not available")) {
+      hints.push("当前版本已默认追加 --ignore-no-formats-error，尽量保留字幕元数据提取。若仍失败，通常说明 YouTube 在当前 IP 上把可用元数据也限制了。");
     }
 
     return {

@@ -30,6 +30,7 @@ HOST=0.0.0.0
 ```text
 PORT=8080
 PYTHON_FOR_YTDLP=/usr/bin/python3
+YTDLP_REMOTE_COMPONENTS=ejs:github
 ```
 
 如果你的部署区域访问 YouTube 或 Gemini 需要代理，再补：
