@@ -12,6 +12,14 @@ type UseProgressivePreviewReturn = {
   isAnimating: boolean;
 };
 
+const TICK_MS = 95;
+const TITLE_STEP = 1;
+const SUMMARY_STEP = 3;
+const QUESTION_STEP = 1;
+const ANSWER_STEP = 2;
+const TEXT_STEP = 2;
+const BLOCK_PAUSE_TICKS = 5;
+
 function keepPrefix(current: string | undefined, target: string | undefined) {
   if (!current || !target) {
     return "";
@@ -80,11 +88,13 @@ export default function useProgressivePreview({
     syncResultStructure(null, result),
   );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pauseTicksRef = useRef(0);
 
   const targetResult = useMemo(() => result, [result]);
 
   useEffect(() => {
     setDisplayResult((current) => syncResultStructure(current, targetResult));
+    pauseTicksRef.current = 0;
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -92,10 +102,18 @@ export default function useProgressivePreview({
 
     timerRef.current = setInterval(() => {
       setDisplayResult((current) => {
+        if (pauseTicksRef.current > 0) {
+          pauseTicksRef.current -= 1;
+          return current;
+        }
+
         const next: ProcessResponse = {
           ...current,
-          title: stepText(current.title, targetResult.title, 2),
-          summary: stepText(current.summary, targetResult.summary, 6),
+          title: stepText(current.title, targetResult.title, TITLE_STEP),
+          summary:
+            current.title === targetResult.title
+              ? stepText(current.summary, targetResult.summary, SUMMARY_STEP)
+              : current.summary,
           speakers: targetResult.speakers,
           dialogueBlocks: targetResult.dialogueBlocks.map((block, index) => {
             const currentBlock = current.dialogueBlocks[index] ?? syncBlockStructure(undefined, block);
@@ -114,18 +132,30 @@ export default function useProgressivePreview({
           const currentBlock = next.dialogueBlocks[index];
 
           if (!isBlockComplete(currentBlock, targetBlock)) {
+            const nextQuestion = stepText(currentBlock.question, targetBlock.question, QUESTION_STEP);
+            const nextAnswer =
+              (currentBlock.question ?? "") === (targetBlock.question ?? "")
+                ? stepText(currentBlock.answer, targetBlock.answer, ANSWER_STEP)
+                : currentBlock.answer;
+            const nextText =
+              (currentBlock.answer ?? "") === (targetBlock.answer ?? "")
+                ? stepText(currentBlock.text, targetBlock.text, TEXT_STEP)
+                : currentBlock.text;
+
             next.dialogueBlocks[index] = {
               ...targetBlock,
-              question: stepText(currentBlock.question, targetBlock.question, 2),
-              answer:
-                (currentBlock.question ?? "") === (targetBlock.question ?? "")
-                  ? stepText(currentBlock.answer, targetBlock.answer, 4)
-                  : currentBlock.answer,
-              text:
-                (currentBlock.answer ?? "") === (targetBlock.answer ?? "")
-                  ? stepText(currentBlock.text, targetBlock.text, 4)
-                  : currentBlock.text,
+              question: nextQuestion,
+              answer: nextAnswer,
+              text: nextText,
             };
+
+            if (
+              nextQuestion === (targetBlock.question ?? "") &&
+              nextAnswer === (targetBlock.answer ?? "") &&
+              nextText === (targetBlock.text ?? "")
+            ) {
+              pauseTicksRef.current = BLOCK_PAUSE_TICKS;
+            }
             break;
           }
         }
@@ -137,7 +167,7 @@ export default function useProgressivePreview({
 
         return next;
       });
-    }, 40);
+    }, TICK_MS);
 
     return () => {
       if (timerRef.current) {
