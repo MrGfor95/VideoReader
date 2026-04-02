@@ -4,6 +4,9 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-04-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "PROCESS_SERVICE_URL": "https://gemini-video2text-subtitle-service-production.up.railway.app"
+  },
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"

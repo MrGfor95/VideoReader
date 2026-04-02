@@ -5,6 +5,10 @@ import type { ProcessRequest } from "@/types/video-processor";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 
+function isLocalProcessServiceUrl(value: string) {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(value);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ProcessRequest;
@@ -18,6 +22,20 @@ export async function POST(request: NextRequest) {
     }
 
     const processServiceUrl = getProcessServiceUrl();
+
+    if (
+      isLocalProcessServiceUrl(processServiceUrl) &&
+      process.env.NODE_ENV === "production"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "字幕服务地址未配置到线上环境，请在 Cloudflare Worker 中设置 PROCESS_SERVICE_URL。",
+        },
+        { status: 500 },
+      );
+    }
+
     const endpoint = new URL("/process", processServiceUrl);
     const upstream = await fetch(endpoint, {
       method: "POST",
