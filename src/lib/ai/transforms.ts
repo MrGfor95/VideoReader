@@ -7,6 +7,7 @@ import {
   DEFAULT_RESULT_TITLE,
   FALLBACK_BLOCK_SPEAKER,
   FALLBACK_BLOCK_TITLE,
+  FALLBACK_QUOTA_SUMMARY,
   FALLBACK_SPEAKER_DESCRIPTION,
   FALLBACK_SUMMARY,
   FALLBACK_TITLE,
@@ -21,7 +22,10 @@ export function mergeSpeakers(results: Array<{ speakers: Speaker[] }>) {
   );
 }
 
-export function buildFallbackResult(transcriptText: string): AiTranscriptResult {
+export function buildFallbackResult(
+  transcriptText: string,
+  summary = FALLBACK_SUMMARY,
+): AiTranscriptResult {
   const paragraphs = transcriptText
     .trim()
     .split(/\n+/)
@@ -41,7 +45,7 @@ export function buildFallbackResult(transcriptText: string): AiTranscriptResult 
 
   return {
     title: FALLBACK_TITLE,
-    summary: FALLBACK_SUMMARY,
+    summary,
     speakers: [
       {
         name: FALLBACK_BLOCK_SPEAKER,
@@ -53,6 +57,10 @@ export function buildFallbackResult(transcriptText: string): AiTranscriptResult 
       .map((block) => `### ${block.title || block.speaker}\n\n**${block.speaker}:** ${block.text}`)
       .join("\n\n"),
   };
+}
+
+export function buildQuotaFallbackResult(transcriptText: string) {
+  return buildFallbackResult(transcriptText, FALLBACK_QUOTA_SUMMARY);
 }
 
 export function normalizeAiResult(payload: Partial<AiTranscriptResult>) {
