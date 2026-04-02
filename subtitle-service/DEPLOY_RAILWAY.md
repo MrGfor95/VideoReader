@@ -40,6 +40,24 @@ HTTPS_PROXY=http://your-proxy
 ALL_PROXY=http://your-proxy
 ```
 
+如果 YouTube 触发了 “Sign in to confirm you’re not a bot”，再补其中一种 cookies 配置：
+
+```text
+YTDLP_COOKIES_B64=base64后的cookies.txt内容
+```
+
+或：
+
+```text
+YTDLP_COOKIES=原始cookies.txt内容
+```
+
+如果你已经把 cookies 文件放进了容器可访问的位置，也可以直接提供：
+
+```text
+YTDLP_COOKIES_PATH=/app/your-cookies.txt
+```
+
 ## Railway 控制台上线步骤
 
 1. 登录 Railway，创建一个新 Project。
@@ -92,6 +110,17 @@ PROCESS_SERVICE_URL=https://your-subtitle-service.up.railway.app
    - `subtitle-service listening`
    - `process stream failed` 之外的异常
 4. 回到 Cloudflare 前端页面，确认流式生成正常
+
+如果日志里出现：
+
+```text
+Sign in to confirm you’re not a bot
+```
+
+优先做这两件事：
+
+1. 给 Railway 配代理变量
+2. 配 `YTDLP_COOKIES_B64` 或 `YTDLP_COOKIES`
 
 ## 常见问题
 

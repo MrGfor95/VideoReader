@@ -34,6 +34,12 @@ PROCESS_SERVICE_URL=http://127.0.0.1:8788
 PYTHON_FOR_YTDLP=C:\Python312\python.exe
 ```
 
+如果 YouTube 触发验证，也支持：
+
+```text
+YTDLP_COOKIES_B64=base64后的cookies.txt内容
+```
+
 启动独立字幕服务：
 
 ```bash

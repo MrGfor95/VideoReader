@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -200,6 +200,51 @@ function chooseSubtitleFormat(tracks: SubtitleFormat[]) {
   return tracks.find((track) => track.url);
 }
 
+async function resolveYtDlpCookiesFile(tempDir?: string) {
+  const configuredPath = process.env.YTDLP_COOKIES_PATH?.trim();
+
+  if (configuredPath) {
+    try {
+      await access(configuredPath);
+      return configuredPath;
+    } catch {
+      return null;
+    }
+  }
+
+  const encodedCookies = process.env.YTDLP_COOKIES_B64?.trim();
+  const rawCookies = process.env.YTDLP_COOKIES?.trim();
+  const cookiesContent = encodedCookies
+    ? Buffer.from(encodedCookies, "base64").toString("utf8")
+    : rawCookies;
+
+  if (!cookiesContent || !tempDir) {
+    return null;
+  }
+
+  const cookiesPath = join(tempDir, "youtube-cookies.txt");
+  await writeFile(cookiesPath, cookiesContent, "utf8");
+  return cookiesPath;
+}
+
+async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempDir?: string) {
+  const args = [...baseArgs, "--js-runtimes", "node"];
+  const proxyUrl = getProxyUrl();
+  const cookiesPath = await resolveYtDlpCookiesFile(tempDir);
+
+  if (proxyUrl) {
+    args.push("--proxy", proxyUrl);
+  }
+
+  if (cookiesPath) {
+    args.push("--cookies", cookiesPath);
+  }
+
+  args.push(videoUrl);
+
+  return { args, proxyUrl, cookiesPath };
+}
+
 async function fetchSubtitleByFormat(track: SubtitleFormat) {
   if (!track.url) {
     return [];
@@ -223,30 +268,32 @@ async function fetchSubtitleByFormat(track: SubtitleFormat) {
 async function loadYtDlpInfo(videoUrl: string) {
   const pythonCommand = await resolvePythonForYtDlp();
   const [executable, ...baseArgs] = pythonCommand;
-  const args = [...baseArgs, "--dump-single-json", "--skip-download"];
-  const proxyUrl = getProxyUrl();
+  const tempDir = await mkdtemp(join(tmpdir(), "gemini-video2text-ytinfo-"));
 
-  if (proxyUrl) {
-    args.push("--proxy", proxyUrl);
+  try {
+    const { args } = await buildYtDlpCommandArgs(
+      [...baseArgs, "--dump-single-json", "--skip-download"],
+      videoUrl,
+      tempDir,
+    );
+
+    const { stdout, stderr } = await execFileAsync(executable, args, {
+      maxBuffer: 20 * 1024 * 1024,
+    });
+
+    return {
+      info: JSON.parse(stdout) as YtDlpInfo,
+      stderr,
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
-
-  args.push(videoUrl);
-
-  const { stdout, stderr } = await execFileAsync(executable, args, {
-    maxBuffer: 20 * 1024 * 1024,
-  });
-
-  return {
-    info: JSON.parse(stdout) as YtDlpInfo,
-    stderr,
-  };
 }
 
 async function downloadSubtitleWithYtDlp(videoUrl: string) {
   const tempDir = await mkdtemp(join(tmpdir(), "gemini-video2text-"));
   const pythonCommand = await resolvePythonForYtDlp();
   const [executable, ...baseArgs] = pythonCommand;
-  const proxyUrl = getProxyUrl();
   const args = [
     ...baseArgs,
     "--skip-download",
@@ -259,17 +306,12 @@ async function downloadSubtitleWithYtDlp(videoUrl: string) {
     "-o",
     join(tempDir, "%(id)s.%(ext)s"),
   ];
-
-  if (proxyUrl) {
-    args.push("--proxy", proxyUrl);
-  }
-
-  args.push(videoUrl);
   let stderrOutput = "";
 
   try {
     try {
-      const { stderr } = await execFileAsync(executable, args, {
+      const { args: finalArgs } = await buildYtDlpCommandArgs(args, videoUrl, tempDir);
+      const { stderr } = await execFileAsync(executable, finalArgs, {
         maxBuffer: 20 * 1024 * 1024,
       });
       stderrOutput = stderr;
@@ -347,6 +389,7 @@ export async function fetchTranscriptWithYtDlp(videoUrl: string) {
 
 export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<TranscriptFetchResult> {
   const diagnostics: string[] = [`yt-dlp 当前代理：${getProxyUrl() ?? "未配置代理"}`];
+  diagnostics.push(`yt-dlp cookies：${process.env.YTDLP_COOKIES_PATH || process.env.YTDLP_COOKIES_B64 || process.env.YTDLP_COOKIES ? "已配置" : "未配置"}`);
 
   try {
     const { info, stderr } = await loadYtDlpInfo(videoUrl);
@@ -401,9 +444,20 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
       diagnostics: [...diagnostics, "yt-dlp 已发现字幕轨道，但未能解析出字幕内容"],
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    const hints: string[] = [];
+
+    if (message.includes("No supported JavaScript runtime could be found")) {
+      hints.push("yt-dlp 需要启用 JS runtime，当前版本已默认追加 --js-runtimes node。");
+    }
+
+    if (message.includes("Sign in to confirm you’re not a bot")) {
+      hints.push("YouTube 触发了反爬验证。建议在 Railway 配置代理，或增加 YTDLP_COOKIES_B64 / YTDLP_COOKIES / YTDLP_COOKIES_PATH。");
+    }
+
     return {
       captions: [],
-      diagnostics: [...diagnostics, `yt-dlp 执行失败：${error instanceof Error ? error.message : "未知错误"}`],
+      diagnostics: [...diagnostics, `yt-dlp 执行失败：${message}`, ...hints],
     };
   }
 }
