@@ -1,8 +1,4 @@
-type PreviewStatusBarProps = {
-  loading: boolean;
-  progressLabel: string;
-  statusMessage: string;
-};
+import type { PreviewStatusBarProps } from "@/components/VideoProcessor/PreviewStatusBar/types";
 
 export default function PreviewStatusBar({
   loading,

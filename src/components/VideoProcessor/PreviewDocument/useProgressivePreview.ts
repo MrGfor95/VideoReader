@@ -1,104 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DialogueBlock, ProcessResponse } from "@/types/video-processor";
-
-type UseProgressivePreviewInput = {
-  result: ProcessResponse;
-};
-
-type UseProgressivePreviewReturn = {
-  displayResult: ProcessResponse;
-  isAnimating: boolean;
-  pendingBlockCount: number;
-};
-
-const TICK_MS = 64;
-const TITLE_STEP = 2;
-const SUMMARY_STEP = 4;
-const QUESTION_STEP = 2;
-const ANSWER_STEP = 3;
-const TEXT_STEP = 3;
-const BLOCK_PAUSE_TICKS = 3;
-
-function keepPrefix(current: string | undefined, target: string | undefined) {
-  if (!current || !target) {
-    return "";
-  }
-
-  return target.startsWith(current) ? current : "";
-}
-
-function stepText(current: string | undefined, target: string | undefined, step = 2) {
-  const currentValue = current ?? "";
-  const targetValue = target ?? "";
-
-  if (currentValue === targetValue) {
-    return targetValue;
-  }
-
-  if (!targetValue.startsWith(currentValue)) {
-    return targetValue.slice(0, step);
-  }
-
-  return targetValue.slice(0, Math.min(currentValue.length + step, targetValue.length));
-}
-
-function syncBlockStructure(current: DialogueBlock | undefined, target: DialogueBlock): DialogueBlock {
-  return {
-    ...target,
-    question: keepPrefix(current?.question, target.question),
-    answer: keepPrefix(current?.answer, target.answer),
-    text: keepPrefix(current?.text, target.text),
-  };
-}
-
-function buildBlockSkeleton(target: DialogueBlock): DialogueBlock {
-  return {
-    ...target,
-    question: "",
-    answer: "",
-    text: "",
-  };
-}
-
-function syncResultStructure(current: ProcessResponse | null, target: ProcessResponse): ProcessResponse {
-  const currentBlockCount = current?.dialogueBlocks.length ?? 0;
-  const nextBlockCount = target.dialogueBlocks.length
-    ? Math.max(1, Math.min(currentBlockCount || 1, target.dialogueBlocks.length))
-    : 0;
-
-  return {
-    ...target,
-    title: keepPrefix(current?.title, target.title),
-    summary: keepPrefix(current?.summary, target.summary),
-    speakers: target.speakers,
-    dialogueBlocks: target.dialogueBlocks.slice(0, nextBlockCount).map((block, index) =>
-      syncBlockStructure(current?.dialogueBlocks[index], block),
-    ),
-  };
-}
-
-function isBlockComplete(current: DialogueBlock, target: DialogueBlock) {
-  return (
-    (current.question ?? "") === (target.question ?? "") &&
-    (current.answer ?? "") === (target.answer ?? "") &&
-    (current.text ?? "") === (target.text ?? "")
-  );
-}
-
-function areAllVisibleBlocksComplete(current: ProcessResponse, target: ProcessResponse) {
-  return current.dialogueBlocks.every((block, index) => isBlockComplete(block, target.dialogueBlocks[index]));
-}
-
-function isResultComplete(current: ProcessResponse, target: ProcessResponse) {
-  return (
-    current.title === target.title &&
-    current.summary === target.summary &&
-    current.dialogueBlocks.length === target.dialogueBlocks.length &&
-    current.dialogueBlocks.every((block, index) => isBlockComplete(block, target.dialogueBlocks[index]))
-  );
-}
+import {
+  ANSWER_STEP,
+  BLOCK_PAUSE_TICKS,
+  CHAPTER_TITLE_STEP,
+  DIALOGUE_TITLE_STEP,
+  QUESTION_STEP,
+  SUMMARY_STEP,
+  TEXT_STEP,
+  TICK_MS,
+  TITLE_STEP,
+} from "@/components/VideoProcessor/PreviewDocument/constants";
+import {
+  areAllVisibleBlocksComplete,
+  buildBlockSkeleton,
+  isBlockComplete,
+  isResultComplete,
+  stepText,
+  syncBlockStructure,
+  syncResultStructure,
+} from "@/components/VideoProcessor/PreviewDocument/helpers";
+import type {
+  UseProgressivePreviewInput,
+  UseProgressivePreviewReturn,
+} from "@/components/VideoProcessor/PreviewDocument/types";
+import type { ProcessResponse } from "@/types/video-processor";
 
 export default function useProgressivePreview({
   result,
@@ -155,6 +82,8 @@ export default function useProgressivePreview({
 
             return {
               ...targetBlock,
+              chapterTitle: currentBlock.chapterTitle,
+              title: currentBlock.title,
               question: currentBlock.question,
               answer: currentBlock.answer,
               text: currentBlock.text,
@@ -171,7 +100,21 @@ export default function useProgressivePreview({
           const currentBlock = next.dialogueBlocks[index];
 
           if (!isBlockComplete(currentBlock, targetBlock)) {
-            const nextQuestion = stepText(currentBlock.question, targetBlock.question, QUESTION_STEP);
+            const nextChapterTitle = stepText(
+              currentBlock.chapterTitle,
+              targetBlock.chapterTitle,
+              CHAPTER_TITLE_STEP,
+            );
+            const canAdvanceDialogueTitle =
+              (currentBlock.chapterTitle ?? "") === (targetBlock.chapterTitle ?? "");
+            const nextTitle = canAdvanceDialogueTitle
+              ? stepText(currentBlock.title, targetBlock.title, DIALOGUE_TITLE_STEP)
+              : currentBlock.title;
+            const canAdvanceQuestion = (currentBlock.title ?? "") === (targetBlock.title ?? "");
+            const nextQuestion =
+              canAdvanceDialogueTitle && canAdvanceQuestion
+                ? stepText(currentBlock.question, targetBlock.question, QUESTION_STEP)
+                : currentBlock.question;
             const nextAnswer =
               (currentBlock.question ?? "") === (targetBlock.question ?? "")
                 ? stepText(currentBlock.answer, targetBlock.answer, ANSWER_STEP)
@@ -183,12 +126,16 @@ export default function useProgressivePreview({
 
             next.dialogueBlocks[index] = {
               ...targetBlock,
+              chapterTitle: nextChapterTitle,
+              title: nextTitle,
               question: nextQuestion,
               answer: nextAnswer,
               text: nextText,
             };
 
             if (
+              nextChapterTitle === (targetBlock.chapterTitle ?? "") &&
+              nextTitle === (targetBlock.title ?? "") &&
               nextQuestion === (targetBlock.question ?? "") &&
               nextAnswer === (targetBlock.answer ?? "") &&
               nextText === (targetBlock.text ?? "")

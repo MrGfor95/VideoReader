@@ -2,14 +2,7 @@ import PreviewDocument from "@/components/VideoProcessor/PreviewDocument";
 import PreviewEmptyState from "@/components/VideoProcessor/PreviewEmptyState";
 import PreviewLoadingState from "@/components/VideoProcessor/PreviewLoadingState";
 import usePreviewPanel from "@/components/VideoProcessor/PreviewPanel/usePreviewPanel";
-import type { ProcessResponse } from "@/types/video-processor";
-
-type PreviewPanelProps = {
-  result: ProcessResponse | null;
-  loading: boolean;
-  statusMessage: string;
-  chunkProgress: string;
-};
+import type { PreviewPanelProps } from "@/components/VideoProcessor/PreviewPanel/types";
 
 export default function PreviewPanel({
   result,

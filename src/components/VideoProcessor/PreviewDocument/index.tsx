@@ -1,15 +1,8 @@
 import DialogueBlockCard from "@/components/VideoProcessor/DialogueBlockCard";
+import { MAX_PENDING_PLACEHOLDERS } from "@/components/VideoProcessor/PreviewDocument/constants";
 import PreviewStatusBar from "@/components/VideoProcessor/PreviewStatusBar";
 import useProgressivePreview from "@/components/VideoProcessor/PreviewDocument/useProgressivePreview";
-import type { ProcessResponse } from "@/types/video-processor";
-
-type PreviewDocumentProps = {
-  loading: boolean;
-  progressLabel: string;
-  result: ProcessResponse;
-  statusMessage: string;
-  onLatestBlockRef: (node: HTMLElement | null) => void;
-};
+import type { PreviewDocumentProps } from "@/components/VideoProcessor/PreviewDocument/types";
 
 export default function PreviewDocument({
   loading,
@@ -63,22 +56,31 @@ export default function PreviewDocument({
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">对话</p>
         <div className="mt-4 flex flex-col gap-4">
-          {visibleResult.dialogueBlocks.map((block, index, blocks) => (
-            <DialogueBlockCard
-              key={`${block.speaker}-${index}`}
-              block={block}
-              index={index}
-              isLatest={index >= Math.max(blocks.length - 2, 0)}
-              loading={loading || isAnimating}
-              onLatestRef={onLatestBlockRef}
-              showChapterTitle={Boolean(
-                block.chapterTitle && block.chapterTitle !== blocks[index - 1]?.chapterTitle,
-              )}
-            />
-          ))}
+          {visibleResult.dialogueBlocks.map((block, index, blocks) => {
+            const targetBlock = result.dialogueBlocks[index];
+            const previousTargetBlock = result.dialogueBlocks[index - 1];
+            const shouldShowChapterTitle = Boolean(
+              targetBlock?.chapterTitle &&
+                targetBlock.chapterTitle !== previousTargetBlock?.chapterTitle,
+            );
+
+            return (
+              <DialogueBlockCard
+                key={`${block.speaker}-${index}`}
+                block={block}
+                index={index}
+                isLatest={index >= Math.max(blocks.length - 2, 0)}
+                loading={loading || isAnimating}
+                onLatestRef={onLatestBlockRef}
+                showChapterTitle={shouldShowChapterTitle}
+              />
+            );
+          })}
 
           {loading || pendingBlockCount > 0
-            ? Array.from({ length: Math.min(Math.max(pendingBlockCount, 1), 2) }).map((_, index) => (
+            ? Array.from({
+                length: Math.min(Math.max(pendingBlockCount, 1), MAX_PENDING_PLACEHOLDERS),
+              }).map((_, index) => (
                 <article
                   key={`placeholder-${index}`}
                   className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] px-5 py-5"

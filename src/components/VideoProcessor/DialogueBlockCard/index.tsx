@@ -1,13 +1,4 @@
-import type { DialogueBlock } from "@/types/video-processor";
-
-type DialogueBlockCardProps = {
-  block: DialogueBlock;
-  index: number;
-  loading: boolean;
-  isLatest: boolean;
-  showChapterTitle: boolean;
-  onLatestRef?: (node: HTMLElement | null) => void;
-};
+import type { DialogueBlockCardProps } from "@/components/VideoProcessor/DialogueBlockCard/types";
 
 export default function DialogueBlockCard({
   block,
@@ -17,6 +8,8 @@ export default function DialogueBlockCard({
   showChapterTitle,
   onLatestRef,
 }: DialogueBlockCardProps) {
+  const chapterTitleText = block.chapterTitle?.trim();
+  const titleText = block.title?.trim();
   const questionText = block.question?.trim();
   const answerText = block.answer?.trim();
 
@@ -24,7 +17,11 @@ export default function DialogueBlockCard({
     <div className="flex flex-col gap-4">
       {showChapterTitle ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4">
-          <p className="text-3xl font-semibold tracking-tight text-white">{block.chapterTitle}</p>
+          {chapterTitleText ? (
+            <p className="text-3xl font-semibold tracking-tight text-white">{chapterTitleText}</p>
+          ) : loading ? (
+            <div className="h-10 w-3/5 rounded-2xl bg-white/10" />
+          ) : null}
         </div>
       ) : null}
 
@@ -36,7 +33,13 @@ export default function DialogueBlockCard({
             : "border-white/10"
         }`}
       >
-        <p className="text-2xl font-semibold leading-9 text-white">{block.title || `第 ${index + 1} 段`}</p>
+        {titleText ? (
+          <p className="text-2xl font-semibold leading-9 text-white">{titleText}</p>
+        ) : loading ? (
+          <div className="h-9 w-2/3 rounded-2xl bg-white/10" />
+        ) : (
+          <p className="text-2xl font-semibold leading-9 text-white">{`第 ${index + 1} 段`}</p>
+        )}
 
         <div className="mt-5 space-y-5">
           <div>

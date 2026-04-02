@@ -1,16 +1,10 @@
-import type { Metadata } from "next";
+import { APP_METADATA } from "@/app/constants";
+import type { RootLayoutProps } from "@/app/types";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "YouTube Video to AI Dialogue Doc",
-  description: "Turn YouTube subtitles into a polished AI dialogue document.",
-};
+export const metadata = APP_METADATA;
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body

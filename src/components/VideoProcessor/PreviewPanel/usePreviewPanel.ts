@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ProcessResponse } from "@/types/video-processor";
+import type {
+  UsePreviewPanelInput,
+  UsePreviewPanelReturn,
+} from "@/components/VideoProcessor/PreviewPanel/types";
 
-type UsePreviewPanelInput = {
-  loading: boolean;
-  result: ProcessResponse | null;
-};
-
-export default function usePreviewPanel({ loading, result }: UsePreviewPanelInput) {
+export default function usePreviewPanel({
+  loading,
+  result,
+}: UsePreviewPanelInput): UsePreviewPanelReturn {
   const latestBlockRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

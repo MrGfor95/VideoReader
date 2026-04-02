@@ -1,20 +1,4 @@
-type ProcessorFormProps = {
-  youtubeUrl: string;
-  preferredLanguage: string;
-  loading: boolean;
-  error: string;
-  statusMessage: string;
-  progress: number;
-  chunkProgress: string;
-  logs: string[];
-  canDownload: boolean;
-  showDebugPreview: boolean;
-  onYoutubeUrlChange: (value: string) => void;
-  onPreferredLanguageChange: (value: string) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
-  onDownload: () => void;
-  onLoadDebugPreview: () => void;
-};
+import type { ProcessorFormProps } from "@/components/VideoProcessor/ProcessorForm/types";
 
 export default function ProcessorForm(props: ProcessorFormProps) {
   const {
