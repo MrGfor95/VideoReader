@@ -18,7 +18,7 @@ export default function PreviewDocument({
   statusMessage,
   onLatestBlockRef,
 }: PreviewDocumentProps) {
-  const { displayResult, isAnimating } = useProgressivePreview({ result });
+  const { displayResult, isAnimating, pendingBlockCount } = useProgressivePreview({ result });
   const visibleResult = displayResult;
 
   return (
@@ -77,8 +77,8 @@ export default function PreviewDocument({
             />
           ))}
 
-          {loading || isAnimating
-            ? Array.from({ length: 2 }).map((_, index) => (
+          {loading || pendingBlockCount > 0
+            ? Array.from({ length: Math.min(Math.max(pendingBlockCount, 1), 2) }).map((_, index) => (
                 <article
                   key={`placeholder-${index}`}
                   className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] px-5 py-5"

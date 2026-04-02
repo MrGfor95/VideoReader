@@ -10,6 +10,7 @@ type UseProgressivePreviewInput = {
 type UseProgressivePreviewReturn = {
   displayResult: ProcessResponse;
   isAnimating: boolean;
+  pendingBlockCount: number;
 };
 
 const TICK_MS = 95;
@@ -70,6 +71,10 @@ function isBlockComplete(current: DialogueBlock, target: DialogueBlock) {
     (current.answer ?? "") === (target.answer ?? "") &&
     (current.text ?? "") === (target.text ?? "")
   );
+}
+
+function hasBlockStarted(block: DialogueBlock) {
+  return Boolean((block.question ?? "").trim() || (block.answer ?? "").trim() || (block.text ?? "").trim());
 }
 
 function isResultComplete(current: ProcessResponse, target: ProcessResponse) {
@@ -177,8 +182,15 @@ export default function useProgressivePreview({
     };
   }, [targetResult]);
 
+  const pendingBlockCount = Math.max(
+    targetResult.dialogueBlocks.length -
+      displayResult.dialogueBlocks.filter((block) => hasBlockStarted(block)).length,
+    0,
+  );
+
   return {
     displayResult,
     isAnimating: !isResultComplete(displayResult, targetResult),
+    pendingBlockCount,
   };
 }

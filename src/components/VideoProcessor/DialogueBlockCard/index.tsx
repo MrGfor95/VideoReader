@@ -17,6 +17,9 @@ export default function DialogueBlockCard({
   showChapterTitle,
   onLatestRef,
 }: DialogueBlockCardProps) {
+  const questionText = block.question?.trim();
+  const answerText = block.answer?.trim();
+
   return (
     <div className="flex flex-col gap-4">
       {showChapterTitle ? (
@@ -43,16 +46,20 @@ export default function DialogueBlockCard({
                 <span className="text-xs tracking-[0.18em] text-slate-500">{block.timecode}</span>
               ) : null}
             </div>
-            <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/95">
-              {block.question || block.title || block.text}
-            </p>
+            {questionText ? (
+              <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/95">{questionText}</p>
+            ) : loading ? (
+              <div className="mt-3 h-7 w-2/5 rounded-full bg-white/10" />
+            ) : null}
           </div>
 
           <div>
             <strong className="text-xl text-emerald-300">{block.answerSpeaker || block.speaker}:</strong>
-            <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/90">
-              {block.answer || block.text}
-            </p>
+            {answerText ? (
+              <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/90">{answerText}</p>
+            ) : loading ? (
+              <div className="mt-3 h-7 w-3/5 rounded-full bg-white/10" />
+            ) : null}
           </div>
         </div>
       </article>
