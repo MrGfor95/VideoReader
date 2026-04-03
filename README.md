@@ -30,8 +30,16 @@ cp .dev.vars.example .dev.vars
 
 ```text
 GEMINI_API_KEY=...
-PROCESS_SERVICE_URL=http://127.0.0.1:8788
+PROCESS_SERVICE_MODE=local
+LOCAL_PROCESS_SERVICE_URL=http://127.0.0.1:8788
 PYTHON_FOR_YTDLP=C:\Python312\python.exe
+```
+
+如果你想在本地前端直接连线上字幕服务，也可以切成：
+
+```text
+PROCESS_SERVICE_MODE=remote
+PROCESS_SERVICE_URL=https://your-subtitle-service.up.railway.app
 ```
 
 如果 YouTube 触发验证，也支持：
@@ -77,6 +85,7 @@ yarn cf-typegen
 Cloudflare Workers 侧需要配置的核心环境变量：
 
 ```text
+PROCESS_SERVICE_MODE=remote
 PROCESS_SERVICE_URL=https://your-subtitle-service.example.com
 ```
 

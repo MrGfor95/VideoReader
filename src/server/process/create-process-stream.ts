@@ -8,6 +8,9 @@ import {
 } from "@/lib/transcript";
 import type { ProcessResponse } from "@/types/video-processor";
 import {
+  applySpeakerAliases,
+  backfillCanonicalRoleSpeakers,
+  buildSpeakerAliasMap,
   buildKnownSpeakers,
   buildStats,
   buildTranscriptFailureMessage,
@@ -83,15 +86,23 @@ async function processTranscriptChunks(input: {
       knownSpeakers,
     });
 
-    const partialResponse = buildDialogueDocument({
+    const nextPartialResponse = buildDialogueDocument({
       aiResult,
       metadata: input.metadata,
       transcriptEntries: chunk.entries,
     });
+    const aliasMap = buildSpeakerAliasMap(aggregate, nextPartialResponse);
+    const partialResponse = applySpeakerAliases(nextPartialResponse, aliasMap);
+    const previousAggregate = aggregate ? applySpeakerAliases(aggregate, aliasMap) : null;
 
     chunkResults.push(aiResult);
-    knownSpeakers = buildKnownSpeakers(knownSpeakers, partialResponse);
-    aggregate = mergeProcessResponses(aggregate, partialResponse, aiResult.summary);
+    aggregate = backfillCanonicalRoleSpeakers(
+      mergeProcessResponses(previousAggregate, partialResponse, aiResult.summary),
+    );
+    knownSpeakers = buildKnownSpeakers(
+      knownSpeakers.map((speaker) => aliasMap.get(speaker) ?? speaker),
+      aggregate,
+    );
 
     streamEvent(input.controller, {
       type: "partial",

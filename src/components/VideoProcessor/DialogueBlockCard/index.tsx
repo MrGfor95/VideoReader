@@ -1,13 +1,4 @@
-import type { DialogueBlock } from "@/types/video-processor";
-
-type DialogueBlockCardProps = {
-  block: DialogueBlock;
-  index: number;
-  loading: boolean;
-  isLatest: boolean;
-  showChapterTitle: boolean;
-  onLatestRef?: (node: HTMLElement | null) => void;
-};
+import type { DialogueBlockCardProps } from "@/components/VideoProcessor/DialogueBlockCard/types";
 
 export default function DialogueBlockCard({
   block,
@@ -17,11 +8,20 @@ export default function DialogueBlockCard({
   showChapterTitle,
   onLatestRef,
 }: DialogueBlockCardProps) {
+  const chapterTitleText = block.chapterTitle?.trim();
+  const titleText = block.title?.trim();
+  const questionText = block.question?.trim();
+  const answerText = block.answer?.trim();
+
   return (
     <div className="flex flex-col gap-4">
       {showChapterTitle ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4">
-          <p className="text-3xl font-semibold tracking-tight text-white">{block.chapterTitle}</p>
+          {chapterTitleText ? (
+            <p className="text-3xl font-semibold tracking-tight text-white">{chapterTitleText}</p>
+          ) : loading ? (
+            <div className="h-10 w-3/5 rounded-2xl bg-white/10" />
+          ) : null}
         </div>
       ) : null}
 
@@ -33,7 +33,13 @@ export default function DialogueBlockCard({
             : "border-white/10"
         }`}
       >
-        <p className="text-2xl font-semibold leading-9 text-white">{block.title || `第 ${index + 1} 段`}</p>
+        {titleText ? (
+          <p className="text-2xl font-semibold leading-9 text-white">{titleText}</p>
+        ) : loading ? (
+          <div className="h-9 w-2/3 rounded-2xl bg-white/10" />
+        ) : (
+          <p className="text-2xl font-semibold leading-9 text-white">{`第 ${index + 1} 段`}</p>
+        )}
 
         <div className="mt-5 space-y-5">
           <div>
@@ -43,16 +49,20 @@ export default function DialogueBlockCard({
                 <span className="text-xs tracking-[0.18em] text-slate-500">{block.timecode}</span>
               ) : null}
             </div>
-            <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/95">
-              {block.question || block.title || block.text}
-            </p>
+            {questionText ? (
+              <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/95">{questionText}</p>
+            ) : loading ? (
+              <div className="mt-3 h-7 w-2/5 rounded-full bg-white/10" />
+            ) : null}
           </div>
 
           <div>
             <strong className="text-xl text-emerald-300">{block.answerSpeaker || block.speaker}:</strong>
-            <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/90">
-              {block.answer || block.text}
-            </p>
+            {answerText ? (
+              <p className="mt-2 whitespace-pre-wrap leading-8 text-slate-100/90">{answerText}</p>
+            ) : loading ? (
+              <div className="mt-3 h-7 w-3/5 rounded-full bg-white/10" />
+            ) : null}
           </div>
         </div>
       </article>

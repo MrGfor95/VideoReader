@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProcessServiceUrl } from "@/lib/network";
+import { getProcessServiceMode, getProcessServiceUrl } from "@/lib/network";
 import type { ProcessRequest } from "@/types/video-processor";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
-
-function isLocalProcessServiceUrl(value: string) {
-  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(value);
-}
 
 function buildStreamErrorEvent(message: string) {
   return `${JSON.stringify({ type: "error", message })}\n`;
@@ -56,6 +52,24 @@ function createProxyStream(upstream: Response) {
   });
 }
 
+function buildRouteErrorMessage(error: unknown, mode: string, endpoint?: string) {
+  const message = error instanceof Error ? error.message : "";
+  const isLocalMode = mode === "local";
+  const pointsToLocalhost = endpoint
+    ? /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(endpoint)
+    : false;
+
+  if (
+    isLocalMode &&
+    pointsToLocalhost &&
+    /fetch failed/i.test(message)
+  ) {
+    return "本地字幕服务未启动或无法连接，请先运行 `yarn dev:subtitle`，再重试。";
+  }
+
+  return message || "处理失败，请稍后重试。";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ProcessRequest;
@@ -69,19 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     const processServiceUrl = getProcessServiceUrl();
-
-    if (
-      isLocalProcessServiceUrl(processServiceUrl) &&
-      process.env.NODE_ENV === "production"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "字幕服务地址未配置到线上环境，请在 Cloudflare Worker 中设置 PROCESS_SERVICE_URL。",
-        },
-        { status: 500 },
-      );
-    }
+    const processServiceMode = getProcessServiceMode();
 
     const endpoint = new URL("/process", processServiceUrl);
     const upstream = await fetch(endpoint, {
@@ -125,6 +127,7 @@ export async function POST(request: NextRequest) {
           upstream.headers.get("content-type") ?? "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
+        "X-Process-Service-Mode": processServiceMode,
       },
     });
   } catch (error) {
@@ -132,10 +135,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "处理失败，请稍后重试。",
+        error: buildRouteErrorMessage(
+          error,
+          getProcessServiceMode(),
+          (() => {
+            try {
+              return getProcessServiceUrl();
+            } catch {
+              return "";
+            }
+          })(),
+        ),
       },
       { status: 500 },
     );

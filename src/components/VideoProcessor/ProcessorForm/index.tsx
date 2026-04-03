@@ -1,18 +1,4 @@
-type ProcessorFormProps = {
-  youtubeUrl: string;
-  preferredLanguage: string;
-  loading: boolean;
-  error: string;
-  statusMessage: string;
-  progress: number;
-  chunkProgress: string;
-  logs: string[];
-  canDownload: boolean;
-  onYoutubeUrlChange: (value: string) => void;
-  onPreferredLanguageChange: (value: string) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
-  onDownload: () => void;
-};
+import type { ProcessorFormProps } from "@/components/VideoProcessor/ProcessorForm/types";
 
 export default function ProcessorForm(props: ProcessorFormProps) {
   const {
@@ -25,10 +11,12 @@ export default function ProcessorForm(props: ProcessorFormProps) {
     chunkProgress,
     logs,
     canDownload,
+    showDebugPreview,
     onYoutubeUrlChange,
     onPreferredLanguageChange,
     onSubmit,
     onDownload,
+    onLoadDebugPreview,
   } = props;
 
   return (
@@ -59,13 +47,24 @@ export default function ProcessorForm(props: ProcessorFormProps) {
           </div>
 
           <div className="flex items-end">
-            <button
-              className="w-full rounded-2xl bg-emerald-300 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={loading}
-              type="submit"
-            >
-              {loading ? "AI 正在流式处理中..." : "开始生成"}
-            </button>
+            <div className="flex w-full flex-col gap-3">
+              <button
+                className="w-full rounded-2xl bg-emerald-300 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={loading}
+                type="submit"
+              >
+                {loading ? "AI 正在流式处理中..." : "开始生成"}
+              </button>
+              {showDebugPreview ? (
+                <button
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  onClick={onLoadDebugPreview}
+                  type="button"
+                >
+                  加载样例预览
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 

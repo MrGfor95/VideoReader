@@ -1,7 +1,16 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { DEFAULT_GEMINI_MODEL, DEFAULT_RESULT_TITLE } from "@/lib/ai/constants";
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_RESULT_TITLE,
+  MIN_CHUNKS_FOR_CONSOLIDATION,
+} from "@/lib/ai/constants";
 import { buildChunkConsolidationPrompt, buildTranscriptChunkPrompt } from "@/lib/ai/prompts";
-import { buildFallbackResult, mergeSpeakers, normalizeAiResult } from "@/lib/ai/transforms";
+import {
+  buildFallbackResult,
+  buildQuotaFallbackResult,
+  mergeSpeakers,
+  normalizeAiResult,
+} from "@/lib/ai/transforms";
 import type {
   ConsolidatedChunkSummary,
   ConsolidateChunkResultsInput,
@@ -36,6 +45,25 @@ function parseStrictJson(text: string) {
   return text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
 }
 
+function isGeminiQuotaExceededError(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const maybeError = error as {
+    message?: string;
+    status?: number;
+    statusText?: string;
+  };
+
+  return (
+    maybeError.status === 429 ||
+    /429|quota exceeded|resource exhausted|too many requests/i.test(
+      `${maybeError.message ?? ""} ${maybeError.statusText ?? ""}`,
+    )
+  );
+}
+
 export function hasGeminiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY);
 }
@@ -48,27 +76,37 @@ export async function processTranscriptChunk({
   const gemini = getClient();
 
   if (!gemini) {
-    return buildFallbackResult(transcriptText);
+    return buildFallbackResult(transcriptText, undefined, preferredLanguage);
   }
 
   const model = gemini.getGenerativeModel({
     model: getModelName(),
   });
 
-  const response = await model.generateContent(
-    buildTranscriptChunkPrompt({
-      transcriptText,
-      preferredLanguage,
-      knownSpeakers,
-    }),
-  );
-  const text = response.response.text();
+  let text = "";
+
+  try {
+    const response = await model.generateContent(
+      buildTranscriptChunkPrompt({
+        transcriptText,
+        preferredLanguage,
+        knownSpeakers,
+      }),
+    );
+    text = response.response.text();
+  } catch (error) {
+    if (isGeminiQuotaExceededError(error)) {
+      return buildQuotaFallbackResult(transcriptText, preferredLanguage);
+    }
+
+    throw error;
+  }
 
   try {
     const parsed = JSON.parse(parseStrictJson(text)) as Partial<AiTranscriptResult>;
-    return normalizeAiResult(parsed);
+    return normalizeAiResult(parsed, preferredLanguage);
   } catch {
-    const fallback = buildFallbackResult(transcriptText);
+    const fallback = buildFallbackResult(transcriptText, undefined, preferredLanguage);
 
     return {
       ...fallback,
@@ -87,7 +125,7 @@ export async function consolidateChunkResults(
     speakers: mergeSpeakers(input.results),
   };
 
-  if (!gemini || input.results.length <= 1) {
+  if (!gemini || input.results.length < MIN_CHUNKS_FOR_CONSOLIDATION) {
     return fallback;
   }
 
@@ -107,7 +145,11 @@ export async function consolidateChunkResults(
           ? parsed.speakers
           : fallback.speakers,
     };
-  } catch {
+  } catch (error) {
+    if (isGeminiQuotaExceededError(error)) {
+      return fallback;
+    }
+
     return fallback;
   }
 }

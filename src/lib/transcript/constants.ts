@@ -2,9 +2,9 @@ export const PREFERRED_CAPTION_LANGUAGES = ["en-orig", "en", "en-US", "zh-Hans",
 export const PREFERRED_YTDLP_LANGUAGES = "en-orig,en,en-US,zh-Hans,zh-CN,zh";
 export const PREFERRED_YTDLP_FETCH_LANGUAGES = ["en-orig", "en", "en-US"];
 
-export const MAX_CHARS_PER_CHUNK = 12000;
-export const MAX_ENTRIES_PER_CHUNK = 180;
-export const MAX_SECONDS_PER_CHUNK = 8 * 60;
+export const MAX_CHARS_PER_CHUNK = 24000;
+export const MAX_ENTRIES_PER_CHUNK = 320;
+export const MAX_SECONDS_PER_CHUNK = 18 * 60;
 
 export const YOUTUBE_WATCH_HEADERS = {
   "User-Agent":

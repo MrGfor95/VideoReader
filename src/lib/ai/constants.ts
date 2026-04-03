@@ -1,10 +1,13 @@
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const MIN_CHUNKS_FOR_CONSOLIDATION = 3;
 
 export const GEMINI_MAX_TRANSCRIPT_CHARS = 180000;
 
 export const FALLBACK_TITLE = "字幕整理草稿";
 export const FALLBACK_SUMMARY =
-  "当前未配置 Gemini API Key，系统返回了基础整理结果，可先用于联调前后端流程。";
+  "当前 AI 整理暂不可用，系统返回了基础整理结果，可先用于联调前后端流程。";
+export const FALLBACK_QUOTA_SUMMARY =
+  "当前 Gemini 配额已触发限制，系统返回了基础整理结果。稍后重试，或检查配额与计费设置。";
 export const FALLBACK_BLOCK_TITLE = "对话要点";
 export const FALLBACK_BLOCK_SPEAKER = "Speaker";
 export const FALLBACK_SPEAKER_DESCRIPTION = "未启用 Gemini 时的默认角色占位。";

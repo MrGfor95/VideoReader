@@ -1,27 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import debugPreviewFixture from "@/components/VideoProcessor/VideoProcessorPage/debugPreviewFixture";
+import {
+  DEBUG_PREVIEW_CHUNK_PROGRESS,
+  DEBUG_PREVIEW_LOGS,
+  DEBUG_PREVIEW_STATUS_MESSAGE,
+  DEFAULT_SUBMISSION_ERROR_MESSAGE,
+  INITIAL_FORM,
+  NETWORK_SUBMISSION_ERROR_MESSAGE,
+  UNREACHABLE_SUBMISSION_ERROR_MESSAGE,
+} from "@/components/VideoProcessor/VideoProcessorPage/constants";
+import type { UseVideoProcessorReturn } from "@/components/VideoProcessor/VideoProcessorPage/types";
 import type { ProcessResponse, StreamEvent } from "@/types/video-processor";
-
-type UseVideoProcessorReturn = {
-  youtubeUrl: string;
-  preferredLanguage: string;
-  result: ProcessResponse | null;
-  loading: boolean;
-  error: string;
-  statusMessage: string;
-  progress: number;
-  chunkProgress: string;
-  logs: string[];
-  setYoutubeUrl: (value: string) => void;
-  setPreferredLanguage: (value: string) => void;
-  handleSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
-};
-
-const initialForm = {
-  youtubeUrl: "",
-  preferredLanguage: "zh-CN",
-};
 
 function getErrorMessage(payload: ProcessResponse | { error?: string }) {
   return "error" in payload ? payload.error ?? "处理失败。" : "处理失败。";
@@ -32,26 +23,26 @@ function normalizeSubmissionError(error: unknown) {
     const message = error.message.trim();
 
     if (!message) {
-      return "请求失败，请稍后重试。";
+      return DEFAULT_SUBMISSION_ERROR_MESSAGE;
     }
 
     if (/network\s*error/i.test(message)) {
-      return "网络连接中断，字幕服务可能在处理中断开，请稍后重试。";
+      return NETWORK_SUBMISSION_ERROR_MESSAGE;
     }
 
     if (/failed to fetch/i.test(message) || /load failed/i.test(message)) {
-      return "无法连接字幕服务，请稍后重试。";
+      return UNREACHABLE_SUBMISSION_ERROR_MESSAGE;
     }
 
     return message;
   }
 
-  return "请求失败，请稍后重试。";
+  return DEFAULT_SUBMISSION_ERROR_MESSAGE;
 }
 
 export default function useVideoProcessor(): UseVideoProcessorReturn {
-  const [youtubeUrl, setYoutubeUrl] = useState(initialForm.youtubeUrl);
-  const [preferredLanguage, setPreferredLanguage] = useState(initialForm.preferredLanguage);
+  const [youtubeUrl, setYoutubeUrl] = useState<string>(INITIAL_FORM.youtubeUrl);
+  const [preferredLanguage, setPreferredLanguage] = useState<string>(INITIAL_FORM.preferredLanguage);
   const [result, setResult] = useState<ProcessResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,6 +50,16 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
   const [progress, setProgress] = useState(0);
   const [chunkProgress, setChunkProgress] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+
+  function loadDebugPreview() {
+    setLoading(false);
+    setError("");
+    setResult(debugPreviewFixture);
+    setStatusMessage(DEBUG_PREVIEW_STATUS_MESSAGE);
+    setProgress(0.78);
+    setChunkProgress(DEBUG_PREVIEW_CHUNK_PROGRESS);
+    setLogs([...DEBUG_PREVIEW_LOGS]);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -166,6 +167,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     progress,
     chunkProgress,
     logs,
+    loadDebugPreview,
     setYoutubeUrl,
     setPreferredLanguage,
     handleSubmit,

@@ -1,0 +1,10 @@
+export const TICK_MS = 64;
+export const TITLE_STEP = 2;
+export const CHAPTER_TITLE_STEP = 2;
+export const DIALOGUE_TITLE_STEP = 2;
+export const SUMMARY_STEP = 4;
+export const QUESTION_STEP = 2;
+export const ANSWER_STEP = 3;
+export const TEXT_STEP = 3;
+export const BLOCK_PAUSE_TICKS = 3;
+export const MAX_PENDING_PLACEHOLDERS = 2;
