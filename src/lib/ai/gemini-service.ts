@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { DEFAULT_GEMINI_MODEL, DEFAULT_RESULT_TITLE } from "@/lib/ai/constants";
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_RESULT_TITLE,
+  MIN_CHUNKS_FOR_CONSOLIDATION,
+} from "@/lib/ai/constants";
 import { buildChunkConsolidationPrompt, buildTranscriptChunkPrompt } from "@/lib/ai/prompts";
 import {
   buildFallbackResult,
@@ -121,7 +125,7 @@ export async function consolidateChunkResults(
     speakers: mergeSpeakers(input.results),
   };
 
-  if (!gemini || input.results.length <= 1) {
+  if (!gemini || input.results.length < MIN_CHUNKS_FOR_CONSOLIDATION) {
     return fallback;
   }
 

@@ -1,4 +1,5 @@
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const MIN_CHUNKS_FOR_CONSOLIDATION = 3;
 
 export const GEMINI_MAX_TRANSCRIPT_CHARS = 180000;
 
