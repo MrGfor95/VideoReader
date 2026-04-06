@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:subtitle": "node --env-file=.env --env-file-if-exists=.env.local --import tsx subtitle-service/src/index.ts",
-    "start:subtitle": "node --env-file=.env --env-file-if-exists=.env.local --import tsx subtitle-service/src/index.ts",
+    "dev:subtitle": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx subtitle-service/src/index.ts",
+    "start:subtitle": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx subtitle-service/src/index.ts",
     "build": "next build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "node scripts/deploy-cloudflare.mjs",
