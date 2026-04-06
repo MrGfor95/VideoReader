@@ -244,13 +244,6 @@ export function createProcessStream(input: CreateProcessStreamInput) {
           progress: 0.02,
         });
 
-        streamEvent(controller, {
-          type: "status",
-          stage: "fetching-transcript",
-          message: "正在优先抓取英文字幕，随后交给 AI 输出中文。",
-          progress: 0.08,
-        });
-
         const videoId = extractVideoId(input.sourceUrl);
 
         if (!videoId) {
@@ -303,6 +296,13 @@ export function createProcessStream(input: CreateProcessStreamInput) {
           controller.close();
           return;
         }
+
+        streamEvent(controller, {
+          type: "status",
+          stage: "fetching-transcript",
+          message: "正在优先抓取英文字幕，随后交给 AI 输出中文。",
+          progress: 0.08,
+        });
 
         const inflight = getInflightResult({
           preferredLanguage: input.preferredLanguage,

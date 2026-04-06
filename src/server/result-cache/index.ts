@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+  DEFAULT_CACHE_ROOT_DIRECTORY,
   DEFAULT_LATEST_RESULT_CACHE_PATH,
   DEFAULT_RESULT_CACHE_DIRECTORY,
 } from "@/server/result-cache/constants";
@@ -25,6 +26,11 @@ function getManagedResultCacheDirectory() {
   return DEFAULT_RESULT_CACHE_DIRECTORY;
 }
 
+function getManagedResultCacheDirectories() {
+  const configured = getManagedResultCacheDirectory();
+  return [...new Set([configured, DEFAULT_RESULT_CACHE_DIRECTORY])];
+}
+
 function buildResultCacheKey(input: { preferredLanguage: string; videoId: string }) {
   const normalizedLanguage = input.preferredLanguage.trim().toLowerCase().replace(/[^a-z0-9-]/g, "_");
   const normalizedVideoId = input.videoId.trim().toLowerCase();
@@ -41,6 +47,20 @@ function getLatestManagedResultCachePath() {
     process.env.MANAGED_LATEST_RESULT_CACHE_PATH?.trim() ||
     DEFAULT_LATEST_RESULT_CACHE_PATH
   );
+}
+
+function getLatestManagedResultCachePaths() {
+  return [...new Set([getLatestManagedResultCachePath(), DEFAULT_LATEST_RESULT_CACHE_PATH])];
+}
+
+async function readManagedResultCachePayload(cachePath: string) {
+  try {
+    await access(cachePath);
+    const raw = await readFile(cachePath, "utf8");
+    return JSON.parse(raw) as ManagedResultCache;
+  } catch {
+    return null;
+  }
 }
 
 function buildManagedResultCachePayload(input: {
@@ -64,26 +84,29 @@ export async function readManagedResultCache(input: {
   videoId: string;
 }) {
   const cacheKey = buildResultCacheKey(input);
-  const cachePath = getManagedResultCachePath(input);
+  const candidatePaths = [
+    ...getManagedResultCacheDirectories().map((directory) =>
+      join(directory, `${cacheKey}.json`),
+    ),
+    ...getLatestManagedResultCachePaths(),
+    join(DEFAULT_CACHE_ROOT_DIRECTORY, "latest-result.json"),
+  ];
 
-  try {
-    await access(cachePath);
-    const raw = await readFile(cachePath, "utf8");
-    const payload = JSON.parse(raw) as ManagedResultCache;
+  for (const cachePath of [...new Set(candidatePaths)]) {
+    const payload = await readManagedResultCachePayload(cachePath);
 
     if (
-      payload.cacheKey !== cacheKey ||
-      payload.videoId !== input.videoId ||
-      payload.preferredLanguage !== input.preferredLanguage ||
-      !payload.result
+      payload &&
+      payload.cacheKey === cacheKey &&
+      payload.videoId === input.videoId &&
+      payload.preferredLanguage === input.preferredLanguage &&
+      payload.result
     ) {
-      return null;
+      return payload;
     }
-
-    return payload;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 export async function writeManagedResultCache(input: {
