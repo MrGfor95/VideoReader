@@ -1,8 +1,9 @@
 import type { VideoProcessorFormState } from "@/components/VideoProcessor/VideoProcessorPage/types";
-import { DEFAULT_DEMO_YOUTUBE_URL } from "@/lib/transcript";
+
+export const DEFAULT_FORM_YOUTUBE_URL = "https://www.youtube.com/watch?v=xRh2sVcNXQ8";
 
 export const INITIAL_FORM: VideoProcessorFormState = {
-  youtubeUrl: DEFAULT_DEMO_YOUTUBE_URL,
+  youtubeUrl: DEFAULT_FORM_YOUTUBE_URL,
   preferredLanguage: "zh-CN",
 };
 

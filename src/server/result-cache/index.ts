@@ -1,22 +1,35 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { DEFAULT_DEMO_RESULT_CACHE_PATH } from "@/server/result-cache/constants";
+import { join } from "node:path";
+import { DEFAULT_RESULT_CACHE_DIRECTORY } from "@/server/result-cache/constants";
 import type { ManagedResultCache } from "@/server/result-cache/types";
 import type { ProcessResponse } from "@/types/video-processor";
 
-function getManagedResultCachePath() {
+function getManagedResultCacheDirectory() {
   return (
+    process.env.RESULT_CACHE_DIRECTORY?.trim() ||
+    process.env.MANAGED_RESULT_CACHE_DIRECTORY?.trim() ||
     process.env.DEMO_RESULT_CACHE_PATH?.trim() ||
     process.env.MANAGED_RESULT_CACHE_PATH?.trim() ||
-    DEFAULT_DEMO_RESULT_CACHE_PATH
+    DEFAULT_RESULT_CACHE_DIRECTORY
   );
+}
+
+function buildResultCacheKey(input: { preferredLanguage: string; videoId: string }) {
+  const normalizedLanguage = input.preferredLanguage.trim().toLowerCase().replace(/[^a-z0-9-]/g, "_");
+  const normalizedVideoId = input.videoId.trim().toLowerCase();
+  return `${normalizedVideoId}__${normalizedLanguage}`;
+}
+
+function getManagedResultCachePath(input: { preferredLanguage: string; videoId: string }) {
+  return join(getManagedResultCacheDirectory(), `${buildResultCacheKey(input)}.json`);
 }
 
 export async function readManagedResultCache(input: {
   preferredLanguage: string;
   videoId: string;
 }) {
-  const cachePath = getManagedResultCachePath();
+  const cacheKey = buildResultCacheKey(input);
+  const cachePath = getManagedResultCachePath(input);
 
   try {
     await access(cachePath);
@@ -24,6 +37,7 @@ export async function readManagedResultCache(input: {
     const payload = JSON.parse(raw) as ManagedResultCache;
 
     if (
+      payload.cacheKey !== cacheKey ||
       payload.videoId !== input.videoId ||
       payload.preferredLanguage !== input.preferredLanguage ||
       !payload.result
@@ -43,13 +57,15 @@ export async function writeManagedResultCache(input: {
   sourceUrl: string;
   videoId: string;
 }) {
-  const cachePath = getManagedResultCachePath();
+  const cacheKey = buildResultCacheKey(input);
+  const cachePath = getManagedResultCachePath(input);
 
-  await mkdir(dirname(cachePath), { recursive: true });
+  await mkdir(getManagedResultCacheDirectory(), { recursive: true });
   await writeFile(
     cachePath,
     JSON.stringify(
       {
+        cacheKey,
         cachedAt: new Date().toISOString(),
         preferredLanguage: input.preferredLanguage,
         result: input.result,

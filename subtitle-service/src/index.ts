@@ -8,6 +8,14 @@ const port = Number(process.env.PORT ?? 8788);
 const host = process.env.HOST ?? "0.0.0.0";
 type NodeCompatibleReadableStream = Parameters<typeof Readable.fromWeb>[0];
 
+function getCookieCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, X-Cookie-Upload-Token",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
+
 async function readJsonBody(request: import("node:http").IncomingMessage) {
   const chunks: Buffer[] = [];
 
@@ -23,10 +31,12 @@ function writeJson(
   response: import("node:http").ServerResponse<import("node:http").IncomingMessage>,
   statusCode: number,
   payload: unknown,
+  headers?: Record<string, string>,
 ) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
+    ...headers,
   });
   response.end(JSON.stringify(payload));
 }
@@ -38,6 +48,12 @@ const server = createServer(async (request, response) => {
 
     if (method === "GET" && url.pathname === "/health") {
       writeJson(response, 200, { status: "ok" });
+      return;
+    }
+
+    if (method === "OPTIONS" && url.pathname === "/admin/cookies") {
+      response.writeHead(204, getCookieCorsHeaders());
+      response.end();
       return;
     }
 
@@ -70,12 +86,17 @@ const server = createServer(async (request, response) => {
       const providedToken = request.headers["x-cookie-upload-token"];
 
       if (!expectedToken) {
-        writeJson(response, 503, { error: "服务端未配置 COOKIE_UPLOAD_TOKEN，暂不允许上传 cookies。" });
+        writeJson(
+          response,
+          503,
+          { error: "服务端未配置 COOKIE_UPLOAD_TOKEN，暂不允许上传 cookies。" },
+          getCookieCorsHeaders(),
+        );
         return;
       }
 
       if (providedToken !== expectedToken) {
-        writeJson(response, 403, { error: "Cookie 管理口令无效。" });
+        writeJson(response, 403, { error: "Cookie 管理口令无效。" }, getCookieCorsHeaders());
         return;
       }
 
@@ -83,15 +104,20 @@ const server = createServer(async (request, response) => {
       const content = body.content?.trim();
 
       if (!content) {
-        writeJson(response, 400, { error: "请上传有效的 cookies.txt 内容。" });
+        writeJson(response, 400, { error: "请上传有效的 cookies.txt 内容。" }, getCookieCorsHeaders());
         return;
       }
 
       const targetPath = await writeManagedCookiesFile(content);
-      writeJson(response, 200, {
-        message: "Cookie 文件已更新，后续请求将自动使用最新内容。",
-        path: targetPath,
-      });
+      writeJson(
+        response,
+        200,
+        {
+          message: "Cookie 文件已更新，后续请求将自动使用最新内容。",
+          path: targetPath,
+        },
+        getCookieCorsHeaders(),
+      );
       return;
     }
 

@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-export const DEFAULT_DEMO_RESULT_CACHE_PATH = join(
+export const DEFAULT_RESULT_CACHE_DIRECTORY = join(
   tmpdir(),
-  "gemini-video2text-demo-result.json",
+  "gemini-video2text-result-cache",
 );

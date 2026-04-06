@@ -32,6 +32,12 @@ function getConfiguredLocalProcessServiceUrl() {
 }
 
 export function getProcessServiceMode() {
+  const remoteUrl = getConfiguredRemoteProcessServiceUrl();
+
+  if (process.env.NODE_ENV === "production" && remoteUrl) {
+    return "remote";
+  }
+
   const configuredMode = normalizeMode(process.env.PROCESS_SERVICE_MODE);
   return configuredMode === "auto" ? resolveAutoMode() : configuredMode;
 }

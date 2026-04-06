@@ -17,6 +17,7 @@ import {
   buildBlockSkeleton,
   isBlockComplete,
   isResultComplete,
+  shouldAnimateResult,
   stepText,
   syncBlockStructure,
   syncResultStructure,
@@ -39,6 +40,18 @@ export default function useProgressivePreview({
   const targetResult = useMemo(() => result, [result]);
 
   useEffect(() => {
+    if (!shouldAnimateResult(targetResult)) {
+      setDisplayResult(targetResult);
+      pauseTicksRef.current = 0;
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      return () => undefined;
+    }
+
     setDisplayResult((current) => syncResultStructure(current, targetResult));
     pauseTicksRef.current = 0;
 

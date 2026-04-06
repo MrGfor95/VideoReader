@@ -1,3 +1,4 @@
+import { NON_ANIMATED_TRANSCRIPT_SOURCES } from "@/components/VideoProcessor/PreviewDocument/constants";
 import type { DialogueBlock, ProcessResponse } from "@/types/video-processor";
 
 function keepPrefix(current: string | undefined, target: string | undefined) {
@@ -82,5 +83,11 @@ export function isResultComplete(current: ProcessResponse, target: ProcessRespon
     current.summary === target.summary &&
     current.dialogueBlocks.length === target.dialogueBlocks.length &&
     current.dialogueBlocks.every((block, index) => isBlockComplete(block, target.dialogueBlocks[index]))
+  );
+}
+
+export function shouldAnimateResult(target: ProcessResponse) {
+  return !NON_ANIMATED_TRANSCRIPT_SOURCES.includes(
+    target.metadata.transcriptSource as (typeof NON_ANIMATED_TRANSCRIPT_SOURCES)[number],
   );
 }

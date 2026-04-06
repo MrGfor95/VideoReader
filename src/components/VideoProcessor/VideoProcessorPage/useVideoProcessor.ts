@@ -23,6 +23,47 @@ function getCookieUploadSuccessMessage(payload: CookieUploadResponse | { error?:
   return "message" in payload ? payload.message : "Cookie 上传完成。";
 }
 
+async function readResponsePayload(response: Response) {
+  const raw = await response.text();
+
+  if (!raw.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as CookieUploadResponse | { error?: string };
+  } catch {
+    return { error: raw.trim() };
+  }
+}
+
+async function uploadCookiesDirect(input: {
+  content: string;
+  directUploadUrl: string;
+  filename: string;
+  token: string;
+}) {
+  const response = await fetch(input.directUploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Cookie-Upload-Token": input.token,
+    },
+    body: JSON.stringify({
+      content: input.content,
+      filename: input.filename,
+    }),
+  });
+
+  const payload = await readResponsePayload(response);
+
+  if (!response.ok) {
+    throw new Error("error" in payload ? payload.error ?? DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE : DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);
+  }
+
+  return payload;
+}
+
 function normalizeSubmissionError(error: unknown) {
   if (error instanceof Error) {
     const message = error.message.trim();
@@ -102,7 +143,27 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
         }),
       });
 
-      const payload = (await response.json()) as CookieUploadResponse | { error?: string };
+      const payload = await readResponsePayload(response);
+
+      if (
+        !response.ok &&
+        "shouldRetryDirect" in payload &&
+        payload.shouldRetryDirect &&
+        "directUploadUrl" in payload &&
+        typeof payload.directUploadUrl === "string" &&
+        payload.directUploadUrl
+      ) {
+        const directPayload = await uploadCookiesDirect({
+          content,
+          directUploadUrl: payload.directUploadUrl,
+          filename: cookieFile.name,
+          token: cookieAdminToken.trim(),
+        });
+
+        setCookieUploadMessage(getCookieUploadSuccessMessage(directPayload));
+        setCookieUploadError("");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error("error" in payload ? payload.error ?? DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE : DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);

@@ -8,3 +8,4 @@ export const ANSWER_STEP = 3;
 export const TEXT_STEP = 3;
 export const BLOCK_PAUSE_TICKS = 3;
 export const MAX_PENDING_PLACEHOLDERS = 2;
+export const NON_ANIMATED_TRANSCRIPT_SOURCES = ["managed-ai-cache"] as const;

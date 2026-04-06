@@ -1,7 +1,8 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { extractVideoId } from "@/lib/transcript";
-import { DEFAULT_DEMO_TRANSCRIPT_CACHE_PATH, DEFAULT_DEMO_VIDEO_ID, DEFAULT_DEMO_YOUTUBE_URL } from "@/server/transcript-cache/constants";
+import { DEFAULT_DEMO_VIDEO_ID, DEFAULT_DEMO_YOUTUBE_URL } from "@/lib/transcript/demo-video";
+import { DEFAULT_DEMO_TRANSCRIPT_CACHE_PATH } from "@/server/transcript-cache/constants";
 import type { CaptionItem } from "@/lib/transcript/types";
 import type { ManagedTranscriptCache } from "@/server/transcript-cache/types";
 

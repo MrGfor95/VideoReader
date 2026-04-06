@@ -30,6 +30,8 @@ export type ProcessRequest = {
 export type CookieUploadResponse = {
   message: string;
   path?: string;
+  directUploadUrl?: string;
+  shouldRetryDirect?: boolean;
 };
 
 export type CookieUploadRequest = {
