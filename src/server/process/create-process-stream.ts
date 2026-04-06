@@ -91,7 +91,9 @@ async function processTranscriptChunks(input: {
   controller: ReadableStreamDefaultController<Uint8Array>;
   metadata: ProcessResponse["metadata"];
   preferredLanguage: string;
+  sourceUrl: string;
   transcriptEntries: ReturnType<typeof normalizeTranscriptEntries>;
+  videoId: string;
 }) {
   const chunks = chunkTranscriptEntries(input.transcriptEntries);
   const chunkResults = [];
@@ -129,6 +131,13 @@ async function processTranscriptChunks(input: {
       knownSpeakers.map((speaker) => aliasMap.get(speaker) ?? speaker),
       aggregate,
     );
+
+    await writeManagedResultCache({
+      preferredLanguage: input.preferredLanguage,
+      result: aggregate,
+      sourceUrl: input.sourceUrl,
+      videoId: input.videoId,
+    });
 
     streamEvent(input.controller, {
       type: "partial",
@@ -189,7 +198,9 @@ async function generateProcessResponse(input: {
     controller: input.controller,
     metadata,
     preferredLanguage: input.preferredLanguage,
+    sourceUrl: input.sourceUrl,
     transcriptEntries,
+    videoId: input.videoId,
   });
 
   streamEvent(input.controller, {
@@ -248,7 +259,6 @@ export function createProcessStream(input: CreateProcessStreamInput) {
 
         const cachedResult = await readManagedResultCache({
           preferredLanguage: input.preferredLanguage,
-          sourceUrl: input.sourceUrl,
           videoId,
         });
 
@@ -262,6 +272,13 @@ export function createProcessStream(input: CreateProcessStreamInput) {
               videoId,
             },
           };
+
+          await writeManagedResultCache({
+            preferredLanguage: input.preferredLanguage,
+            result: payload,
+            sourceUrl: input.sourceUrl,
+            videoId,
+          });
 
           streamEvent(controller, {
             type: "status",

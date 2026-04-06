@@ -5,6 +5,7 @@ export const DEFAULT_YTDLP_REMOTE_COMPONENTS = "ejs:github";
 export const DEFAULT_YTDLP_SOCKET_TIMEOUT_SECONDS = 45;
 export const DEFAULT_YTDLP_RETRY_COUNT = 2;
 export const DEFAULT_YTDLP_COOKIES_MODE = "auto";
+export const DEFAULT_YTDLP_PROXY_URL = "";
 
 export const MAX_CHARS_PER_CHUNK = 24000;
 export const MAX_ENTRIES_PER_CHUNK = 320;

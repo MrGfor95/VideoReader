@@ -7,6 +7,7 @@ import { fetchWithProxy, getProxyUrl } from "@/lib/network/proxy";
 import { getManagedCookiesPath } from "@/server/cookies";
 import {
   DEFAULT_YTDLP_COOKIES_MODE,
+  DEFAULT_YTDLP_PROXY_URL,
   DEFAULT_YTDLP_REMOTE_COMPONENTS,
   DEFAULT_YTDLP_RETRY_COUNT,
   DEFAULT_YTDLP_SOCKET_TIMEOUT_SECONDS,
@@ -47,6 +48,57 @@ function getYtDlpCookiesMode(): YtDlpCookiesMode {
   }
 
   return DEFAULT_YTDLP_COOKIES_MODE as YtDlpCookiesMode;
+}
+
+function getYtDlpProxyUrl() {
+  const proxyUrl = process.env.YTDLP_PROXY_URL?.trim() || DEFAULT_YTDLP_PROXY_URL || getProxyUrl();
+
+  if (!proxyUrl) {
+    return null;
+  }
+
+  return proxyUrl
+    .replace(/^https?:\/\/127\.0\.0\.1:7890$/i, "socks5://127.0.0.1:7890")
+    .replace(/^https?:\/\/localhost:7890$/i, "socks5://127.0.0.1:7890");
+}
+
+function buildYtDlpHints(message: string, proxyUrl?: string) {
+  const hints: string[] = [];
+
+  if (message.includes("No supported JavaScript runtime could be found")) {
+    hints.push("yt-dlp 需要启用 JS runtime，当前版本已默认追加 --js-runtimes node。");
+  }
+
+  if (message.includes("Sign in to confirm you’re not a bot")) {
+    hints.push("YouTube 触发了登录态 / 机器人验证。当前更像是被风控拦截，而不是视频真的没有字幕。建议补充可用 cookies，或切换更稳定的代理出口。");
+  }
+
+  if (message.includes("Requested format is not available")) {
+    hints.push("YouTube 在当前会话下只返回了受限元数据，字幕轨道也可能一并被隐藏。这个信号通常和风控/登录态有关，不一定说明视频本身没有字幕。");
+  }
+
+  if (message.includes("Read timed out")) {
+    hints.push("当前失败点更像网络超时而不是字幕不存在。建议优先配置代理；如果仍要直连，可继续提高 YTDLP_SOCKET_TIMEOUT_SECONDS。");
+  }
+
+  if (message.includes("UNEXPECTED_EOF_WHILE_READING")) {
+    if (proxyUrl?.includes("127.0.0.1:7890")) {
+      hints.push("当前更像是 mixed 端口 7890 走 HTTP 代理时与 YouTube TLS 链路不稳定。yt-dlp 更适合改用 socks5://127.0.0.1:7890。");
+    } else {
+      hints.push("当前更像是代理与 YouTube TLS 链路不稳定。建议切换代理出口，或改用显式的 HTTP / SOCKS5 代理地址。");
+    }
+  }
+
+  return hints;
+}
+
+function collectRelevantYtDlpMessages(stderr: string) {
+  return stderr
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => line.startsWith("WARNING:") || line.startsWith("ERROR:"))
+    .slice(0, 3);
 }
 
 function looksLikeYtDlpBinary(value: string) {
@@ -281,7 +333,7 @@ async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempD
     "--extractor-retries",
     String(getYtDlpRetryCount()),
   ];
-  const proxyUrl = getProxyUrl();
+  const proxyUrl = getYtDlpProxyUrl();
   const cookiesMode = getYtDlpCookiesMode();
   const cookiesPath = await resolveYtDlpCookiesFile(cookiesMode, tempDir);
   const remoteComponents = getRemoteComponents();
@@ -329,18 +381,19 @@ async function loadYtDlpInfo(videoUrl: string) {
   const tempDir = await mkdtemp(join(tmpdir(), "gemini-video2text-ytinfo-"));
 
   try {
-    const { args } = await buildYtDlpCommandArgs(
+    const buildResult = await buildYtDlpCommandArgs(
       [...baseArgs, "--dump-single-json", "--skip-download"],
       videoUrl,
       tempDir,
     );
 
-    const { stdout, stderr } = await execFileAsync(executable, args, {
+    const { stdout, stderr } = await execFileAsync(executable, buildResult.args, {
       maxBuffer: 20 * 1024 * 1024,
     });
 
     return {
       info: JSON.parse(stdout) as YtDlpInfo,
+      ...buildResult,
       stderr,
     };
   } finally {
@@ -446,15 +499,22 @@ export async function fetchTranscriptWithYtDlp(videoUrl: string) {
 }
 
 export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<TranscriptFetchResult> {
-  const diagnostics: string[] = [`yt-dlp 当前代理：${getProxyUrl() ?? "未配置代理"}`];
+  const diagnostics: string[] = [];
+  const defaultProxyUrl = getYtDlpProxyUrl();
+  diagnostics.push(`yt-dlp 当前代理：${defaultProxyUrl ?? "未配置代理"}`);
   diagnostics.push(`yt-dlp cookies 模式：${getYtDlpCookiesMode()}`);
-  diagnostics.push(`yt-dlp cookies：${process.env.YTDLP_COOKIES_PATH || process.env.YTDLP_COOKIES_B64 || process.env.YTDLP_COOKIES ? "已配置" : "未配置"}`);
   diagnostics.push(`yt-dlp remote components：${getRemoteComponents() || "未配置"}`);
   diagnostics.push(`yt-dlp socket timeout：${getYtDlpSocketTimeoutSeconds()}s`);
   diagnostics.push(`yt-dlp retry count：${getYtDlpRetryCount()}`);
 
   try {
-    const { info, stderr } = await loadYtDlpInfo(videoUrl);
+    const { info, stderr, cookiesPath, proxyUrl } = await loadYtDlpInfo(videoUrl);
+    diagnostics[0] = `yt-dlp 当前代理：${proxyUrl ?? "未配置代理"}`;
+    diagnostics.splice(
+      2,
+      0,
+      `yt-dlp cookies：${cookiesPath ? `已启用 (${cookiesPath})` : "未启用"}`,
+    );
     const manualLanguages = Object.keys(info.subtitles ?? {});
     const autoLanguages = Object.keys(info.automatic_captions ?? {});
 
@@ -466,7 +526,13 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
     }
 
     if (stderr.trim()) {
-      diagnostics.push(`yt-dlp 提示：${stderr.trim().split("\n")[0]}`);
+      const relevantMessages = collectRelevantYtDlpMessages(stderr);
+
+      if (relevantMessages.length) {
+        diagnostics.push(`yt-dlp 提示：${relevantMessages.join("；")}`);
+      } else {
+        diagnostics.push(`yt-dlp 提示：${stderr.trim().split("\n")[0]}`);
+      }
     }
 
     const manual = await fetchFromGroup(info.subtitles);
@@ -501,29 +567,20 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
       }
     }
 
+    const combinedMessage = [stderr, ...downloaded.diagnostics].filter(Boolean).join("\n");
+    const hints = buildYtDlpHints(combinedMessage, proxyUrl);
+
+    if (manualLanguages.length === 0 && autoLanguages.length === 0 && hints.length) {
+      diagnostics.push("yt-dlp 未返回任何字幕语言，当前更像被 YouTube 风控或登录态校验拦截，而不是视频本身没有字幕。");
+    }
+
     return {
       captions: [],
-      diagnostics: [...diagnostics, "yt-dlp 已发现字幕轨道，但未能解析出字幕内容"],
+      diagnostics: [...diagnostics, "yt-dlp 已发现字幕轨道，但未能解析出字幕内容", ...hints],
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "未知错误";
-    const hints: string[] = [];
-
-    if (message.includes("No supported JavaScript runtime could be found")) {
-      hints.push("yt-dlp 需要启用 JS runtime，当前版本已默认追加 --js-runtimes node。");
-    }
-
-    if (message.includes("Sign in to confirm you’re not a bot")) {
-      hints.push("YouTube 触发了反爬验证。建议在 Railway 配置代理，或增加 YTDLP_COOKIES_B64 / YTDLP_COOKIES / YTDLP_COOKIES_PATH。");
-    }
-
-    if (message.includes("Requested format is not available")) {
-      hints.push("当前版本已默认追加 --ignore-no-formats-error，尽量保留字幕元数据提取。若仍失败，通常说明 YouTube 在当前 IP 上把可用元数据也限制了。");
-    }
-
-    if (message.includes("Read timed out")) {
-      hints.push("当前失败点更像网络超时而不是字幕不存在。建议优先配置代理；如果仍要直连，可继续提高 YTDLP_SOCKET_TIMEOUT_SECONDS。");
-    }
+    const hints = buildYtDlpHints(message, defaultProxyUrl);
 
     return {
       captions: [],

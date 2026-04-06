@@ -32,3 +32,11 @@ cloudflare-env.d.ts
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local demo cache
+.cache/*
+!.cache/demo-transcript.json
+!.cache/latest-result.json
+!.cache/result-cache/
+.cache/result-cache/*
+!.cache/result-cache/xrh2svcnxq8__zh-cn.json

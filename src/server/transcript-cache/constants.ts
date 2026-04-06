@@ -1,7 +1,7 @@
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { DEFAULT_CACHE_ROOT_DIRECTORY } from "@/server/result-cache/constants";
 
 export const DEFAULT_DEMO_TRANSCRIPT_CACHE_PATH = join(
-  tmpdir(),
-  "gemini-video2text-demo-transcript.json",
+  DEFAULT_CACHE_ROOT_DIRECTORY,
+  "demo-transcript.json",
 );

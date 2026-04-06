@@ -68,10 +68,12 @@ HTTPS_PROXY=http://127.0.0.1:7890
 YTDLP_COOKIES_MODE=auto
 YTDLP_SOCKET_TIMEOUT_SECONDS=45
 YTDLP_RETRY_COUNT=2
+YTDLP_PROXY_URL=http://127.0.0.1:7892
 COOKIE_UPLOAD_TOKEN=your-admin-token
 YTDLP_MANAGED_COOKIES_PATH=/app/runtime/youtube-cookies.txt
-DEMO_TRANSCRIPT_CACHE_PATH=/app/runtime/demo-transcript.json
-MANAGED_RESULT_CACHE_DIRECTORY=/app/runtime/result-cache
+DEMO_TRANSCRIPT_CACHE_PATH=.cache/demo-transcript.json
+MANAGED_RESULT_CACHE_DIRECTORY=.cache/result-cache
+LATEST_RESULT_CACHE_PATH=.cache/latest-result.json
 ```
 
 `YTDLP_COOKIES_MODE` 支持：

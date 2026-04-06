@@ -1,9 +1,9 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { DEFAULT_DEMO_RESULT } from "@/lib/demo/default-demo-result";
-import { DEFAULT_DEMO_VIDEO_ID, DEFAULT_DEMO_YOUTUBE_URL } from "@/lib/transcript/demo-video";
-import { extractVideoId } from "@/lib/transcript";
-import { DEFAULT_RESULT_CACHE_DIRECTORY } from "@/server/result-cache/constants";
+import {
+  DEFAULT_LATEST_RESULT_CACHE_PATH,
+  DEFAULT_RESULT_CACHE_DIRECTORY,
+} from "@/server/result-cache/constants";
 import type { ManagedResultCache } from "@/server/result-cache/types";
 import type { ProcessResponse } from "@/types/video-processor";
 
@@ -35,35 +35,25 @@ function getManagedResultCachePath(input: { preferredLanguage: string; videoId: 
   return join(getManagedResultCacheDirectory(), `${buildResultCacheKey(input)}.json`);
 }
 
-function isManagedDemoVideo(sourceUrl: string, videoId: string) {
-  const configuredVideoId = process.env.DEMO_TRANSCRIPT_VIDEO_ID?.trim() || DEFAULT_DEMO_VIDEO_ID;
-  const configuredUrl = process.env.DEMO_TRANSCRIPT_SOURCE_URL?.trim() || DEFAULT_DEMO_YOUTUBE_URL;
-
-  if (videoId === configuredVideoId) {
-    return true;
-  }
-
-  return extractVideoId(sourceUrl) === extractVideoId(configuredUrl);
+function getLatestManagedResultCachePath() {
+  return (
+    process.env.LATEST_RESULT_CACHE_PATH?.trim() ||
+    process.env.MANAGED_LATEST_RESULT_CACHE_PATH?.trim() ||
+    DEFAULT_LATEST_RESULT_CACHE_PATH
+  );
 }
 
-function buildEmbeddedDemoResultCache(input: {
+function buildManagedResultCachePayload(input: {
   preferredLanguage: string;
+  result: ProcessResponse;
   sourceUrl: string;
   videoId: string;
 }) {
   return {
     cacheKey: buildResultCacheKey(input),
-    cachedAt: "embedded-demo-result",
+    cachedAt: new Date().toISOString(),
     preferredLanguage: input.preferredLanguage,
-    result: {
-      ...DEFAULT_DEMO_RESULT,
-      metadata: {
-        ...DEFAULT_DEMO_RESULT.metadata,
-        sourceUrl: input.sourceUrl,
-        transcriptSource: "managed-ai-cache",
-        videoId: input.videoId,
-      },
-    },
+    result: input.result,
     sourceUrl: input.sourceUrl,
     videoId: input.videoId,
   } satisfies ManagedResultCache;
@@ -71,7 +61,6 @@ function buildEmbeddedDemoResultCache(input: {
 
 export async function readManagedResultCache(input: {
   preferredLanguage: string;
-  sourceUrl: string;
   videoId: string;
 }) {
   const cacheKey = buildResultCacheKey(input);
@@ -93,10 +82,6 @@ export async function readManagedResultCache(input: {
 
     return payload;
   } catch {
-    if (isManagedDemoVideo(input.sourceUrl, input.videoId)) {
-      return buildEmbeddedDemoResultCache(input);
-    }
-
     return null;
   }
 }
@@ -107,21 +92,24 @@ export async function writeManagedResultCache(input: {
   sourceUrl: string;
   videoId: string;
 }) {
-  const cacheKey = buildResultCacheKey(input);
   const cachePath = getManagedResultCachePath(input);
+  const latestCachePath = getLatestManagedResultCachePath();
+  const payload = buildManagedResultCachePayload(input);
 
   await mkdir(getManagedResultCacheDirectory(), { recursive: true });
+  await mkdir(dirname(latestCachePath), { recursive: true });
   await writeFile(
     cachePath,
+    JSON.stringify(payload, null, 2),
+    "utf8",
+  );
+  await writeFile(
+    latestCachePath,
     JSON.stringify(
       {
-        cacheKey,
-        cachedAt: new Date().toISOString(),
-        preferredLanguage: input.preferredLanguage,
-        result: input.result,
-        sourceUrl: input.sourceUrl,
-        videoId: input.videoId,
-      } satisfies ManagedResultCache,
+        ...payload,
+        cachePath,
+      },
       null,
       2,
     ),
