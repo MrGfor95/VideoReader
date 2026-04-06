@@ -68,15 +68,36 @@ function applyAliasesToSpeakers(speakers: Speaker[], aliasMap: Map<string, strin
   );
 }
 
-function getLatestSpecificRoleName(
+function getSpecificRoleNames(
   blocks: DialogueBlock[],
   key: "questionSpeaker" | "answerSpeaker",
 ) {
-  const matches = blocks
-    .map((block) => block[key])
-    .filter((speaker): speaker is string => Boolean(speaker && isSpecificSpeakerLabel(speaker)));
+  return Array.from(
+    new Set(
+      blocks
+        .map((block) => block[key])
+        .filter((speaker): speaker is string => Boolean(speaker && isSpecificSpeakerLabel(speaker))),
+    ),
+  );
+}
 
-  return matches.length ? matches[matches.length - 1] : null;
+function getSafeCanonicalRoleNames(blocks: DialogueBlock[]) {
+  const questionSpecificNames = getSpecificRoleNames(blocks, "questionSpeaker");
+  const answerSpecificNames = getSpecificRoleNames(blocks, "answerSpeaker");
+
+  const safeQuestionNames = questionSpecificNames.filter(
+    (name) => !answerSpecificNames.includes(name),
+  );
+  const safeAnswerNames = answerSpecificNames.filter(
+    (name) => !questionSpecificNames.includes(name),
+  );
+
+  return {
+    question:
+      safeQuestionNames.length === 1 ? safeQuestionNames[0] : null,
+    answer:
+      safeAnswerNames.length === 1 ? safeAnswerNames[0] : null,
+  };
 }
 
 function rebuildSpeakersFromBlocks(response: ProcessResponse) {
@@ -119,14 +140,16 @@ export function applySpeakerAliases(
 }
 
 export function backfillCanonicalRoleSpeakers(response: ProcessResponse): ProcessResponse {
-  const canonicalQuestionSpeaker = getLatestSpecificRoleName(
-    response.dialogueBlocks,
-    "questionSpeaker",
-  );
-  const canonicalAnswerSpeaker = getLatestSpecificRoleName(
-    response.dialogueBlocks,
-    "answerSpeaker",
-  );
+  const safeCanonicalRoles = getSafeCanonicalRoleNames(response.dialogueBlocks);
+  const canonicalQuestionSpeaker = safeCanonicalRoles.question;
+  const canonicalAnswerSpeaker = safeCanonicalRoles.answer;
+
+  const shouldBackfillQuestion =
+    Boolean(safeCanonicalRoles.question) &&
+    safeCanonicalRoles.question !== safeCanonicalRoles.answer;
+  const shouldBackfillAnswer =
+    Boolean(safeCanonicalRoles.answer) &&
+    safeCanonicalRoles.answer !== safeCanonicalRoles.question;
 
   if (!canonicalQuestionSpeaker && !canonicalAnswerSpeaker) {
     return response;
@@ -136,15 +159,24 @@ export function backfillCanonicalRoleSpeakers(response: ProcessResponse): Proces
     ...response,
     dialogueBlocks: response.dialogueBlocks.map((block) => {
       const questionSpeaker =
-        block.questionSpeaker && isGenericSpeakerLabel(block.questionSpeaker) && canonicalQuestionSpeaker
+        block.questionSpeaker &&
+        isGenericSpeakerLabel(block.questionSpeaker) &&
+        shouldBackfillQuestion &&
+        canonicalQuestionSpeaker
           ? canonicalQuestionSpeaker
           : block.questionSpeaker;
       const answerSpeaker =
-        block.answerSpeaker && isGenericSpeakerLabel(block.answerSpeaker) && canonicalAnswerSpeaker
+        block.answerSpeaker &&
+        isGenericSpeakerLabel(block.answerSpeaker) &&
+        shouldBackfillAnswer &&
+        canonicalAnswerSpeaker
           ? canonicalAnswerSpeaker
           : block.answerSpeaker;
       const speaker =
-        block.speaker && isGenericSpeakerLabel(block.speaker) && canonicalAnswerSpeaker
+        block.speaker &&
+        isGenericSpeakerLabel(block.speaker) &&
+        shouldBackfillAnswer &&
+        canonicalAnswerSpeaker
           ? canonicalAnswerSpeaker
           : block.speaker;
 
@@ -173,14 +205,6 @@ function getGenericRoleNames(blocks: DialogueBlock[], key: "questionSpeaker" | "
   );
 }
 
-function getSpecificRoleName(blocks: DialogueBlock[], key: "questionSpeaker" | "answerSpeaker") {
-  const matches = blocks
-    .map((block) => block[key])
-    .filter((speaker): speaker is string => Boolean(speaker && isSpecificSpeakerLabel(speaker)));
-
-  return matches.length === 1 ? matches[0] : null;
-}
-
 export function buildSpeakerAliasMap(
   previous: ProcessResponse | null,
   next: ProcessResponse,
@@ -193,16 +217,17 @@ export function buildSpeakerAliasMap(
 
   const previousQuestionGenerics = getGenericRoleNames(previous.dialogueBlocks, "questionSpeaker");
   const previousAnswerGenerics = getGenericRoleNames(previous.dialogueBlocks, "answerSpeaker");
-  const nextQuestionSpecific = getSpecificRoleName(next.dialogueBlocks, "questionSpeaker");
-  const nextAnswerSpecific = getSpecificRoleName(next.dialogueBlocks, "answerSpeaker");
+  const nextSafeCanonicalRoles = getSafeCanonicalRoleNames(next.dialogueBlocks);
+  const nextQuestionSpecific = nextSafeCanonicalRoles.question;
+  const nextAnswerSpecific = nextSafeCanonicalRoles.answer;
 
-  if (nextQuestionSpecific) {
+  if (nextSafeCanonicalRoles.question && nextQuestionSpecific !== nextAnswerSpecific) {
     for (const genericName of previousQuestionGenerics) {
       aliasMap.set(genericName, nextQuestionSpecific);
     }
   }
 
-  if (nextAnswerSpecific) {
+  if (nextSafeCanonicalRoles.answer && nextAnswerSpecific !== nextQuestionSpecific) {
     for (const genericName of previousAnswerGenerics) {
       aliasMap.set(genericName, nextAnswerSpecific);
     }
