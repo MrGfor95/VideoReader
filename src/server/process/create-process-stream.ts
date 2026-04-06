@@ -248,6 +248,7 @@ export function createProcessStream(input: CreateProcessStreamInput) {
 
         const cachedResult = await readManagedResultCache({
           preferredLanguage: input.preferredLanguage,
+          sourceUrl: input.sourceUrl,
           videoId,
         });
 

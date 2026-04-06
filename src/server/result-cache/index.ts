@@ -1,5 +1,8 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { DEFAULT_DEMO_RESULT } from "@/lib/demo/default-demo-result";
+import { DEFAULT_DEMO_VIDEO_ID, DEFAULT_DEMO_YOUTUBE_URL } from "@/lib/transcript/demo-video";
+import { extractVideoId } from "@/lib/transcript";
 import { DEFAULT_RESULT_CACHE_DIRECTORY } from "@/server/result-cache/constants";
 import type { ManagedResultCache } from "@/server/result-cache/types";
 import type { ProcessResponse } from "@/types/video-processor";
@@ -32,8 +35,43 @@ function getManagedResultCachePath(input: { preferredLanguage: string; videoId: 
   return join(getManagedResultCacheDirectory(), `${buildResultCacheKey(input)}.json`);
 }
 
+function isManagedDemoVideo(sourceUrl: string, videoId: string) {
+  const configuredVideoId = process.env.DEMO_TRANSCRIPT_VIDEO_ID?.trim() || DEFAULT_DEMO_VIDEO_ID;
+  const configuredUrl = process.env.DEMO_TRANSCRIPT_SOURCE_URL?.trim() || DEFAULT_DEMO_YOUTUBE_URL;
+
+  if (videoId === configuredVideoId) {
+    return true;
+  }
+
+  return extractVideoId(sourceUrl) === extractVideoId(configuredUrl);
+}
+
+function buildEmbeddedDemoResultCache(input: {
+  preferredLanguage: string;
+  sourceUrl: string;
+  videoId: string;
+}) {
+  return {
+    cacheKey: buildResultCacheKey(input),
+    cachedAt: "embedded-demo-result",
+    preferredLanguage: input.preferredLanguage,
+    result: {
+      ...DEFAULT_DEMO_RESULT,
+      metadata: {
+        ...DEFAULT_DEMO_RESULT.metadata,
+        sourceUrl: input.sourceUrl,
+        transcriptSource: "managed-ai-cache",
+        videoId: input.videoId,
+      },
+    },
+    sourceUrl: input.sourceUrl,
+    videoId: input.videoId,
+  } satisfies ManagedResultCache;
+}
+
 export async function readManagedResultCache(input: {
   preferredLanguage: string;
+  sourceUrl: string;
   videoId: string;
 }) {
   const cacheKey = buildResultCacheKey(input);
@@ -55,6 +93,10 @@ export async function readManagedResultCache(input: {
 
     return payload;
   } catch {
+    if (isManagedDemoVideo(input.sourceUrl, input.videoId)) {
+      return buildEmbeddedDemoResultCache(input);
+    }
+
     return null;
   }
 }
