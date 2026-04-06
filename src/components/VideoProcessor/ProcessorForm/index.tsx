@@ -1,3 +1,4 @@
+import CookieUploadPanel from "@/components/VideoProcessor/CookieUploadPanel";
 import type { ProcessorFormProps } from "@/components/VideoProcessor/ProcessorForm/types";
 
 export default function ProcessorForm(props: ProcessorFormProps) {
@@ -10,10 +11,17 @@ export default function ProcessorForm(props: ProcessorFormProps) {
     progress,
     chunkProgress,
     logs,
+    cookieAdminToken,
+    cookieUploadMessage,
+    cookieUploadError,
+    cookieUploadLoading,
     canDownload,
     showDebugPreview,
+    onCookieAdminTokenChange,
+    onCookieFileChange,
     onYoutubeUrlChange,
     onPreferredLanguageChange,
+    onUploadCookies,
     onSubmit,
     onDownload,
     onLoadDebugPreview,
@@ -112,6 +120,16 @@ export default function ProcessorForm(props: ProcessorFormProps) {
             {error}
           </p>
         ) : null}
+
+        <CookieUploadPanel
+          adminToken={cookieAdminToken}
+          onAdminTokenChange={onCookieAdminTokenChange}
+          onCookieFileChange={onCookieFileChange}
+          onUpload={onUploadCookies}
+          uploadError={cookieUploadError}
+          uploadLoading={cookieUploadLoading}
+          uploadMessage={cookieUploadMessage}
+        />
       </form>
     </section>
   );

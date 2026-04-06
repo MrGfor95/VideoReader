@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { fetchWithProxy, getProxyUrl } from "@/lib/network/proxy";
+import { getManagedCookiesPath } from "@/server/cookies";
 import {
+  DEFAULT_YTDLP_COOKIES_MODE,
+  DEFAULT_YTDLP_REMOTE_COMPONENTS,
+  DEFAULT_YTDLP_RETRY_COUNT,
+  DEFAULT_YTDLP_SOCKET_TIMEOUT_SECONDS,
   PREFERRED_YTDLP_FETCH_LANGUAGES,
   PREFERRED_YTDLP_LANGUAGES,
 } from "@/lib/transcript/constants";
@@ -14,6 +19,7 @@ import type {
   CaptionItem,
   SubtitleFormat,
   TranscriptFetchResult,
+  YtDlpCookiesMode,
   YtDlpInfo,
 } from "@/lib/transcript/types";
 
@@ -21,7 +27,26 @@ const execFileAsync = promisify(execFile);
 let resolvedPythonCommand: string[] | null = null;
 
 function getRemoteComponents() {
-  return process.env.YTDLP_REMOTE_COMPONENTS?.trim() || "ejs:github";
+  return process.env.YTDLP_REMOTE_COMPONENTS?.trim() || DEFAULT_YTDLP_REMOTE_COMPONENTS;
+}
+
+function getYtDlpSocketTimeoutSeconds() {
+  const value = Number(process.env.YTDLP_SOCKET_TIMEOUT_SECONDS);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_YTDLP_SOCKET_TIMEOUT_SECONDS;
+}
+
+function getYtDlpRetryCount() {
+  const value = Number(process.env.YTDLP_RETRY_COUNT);
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : DEFAULT_YTDLP_RETRY_COUNT;
+}
+
+function getYtDlpCookiesMode(): YtDlpCookiesMode {
+  const mode = process.env.YTDLP_COOKIES_MODE?.trim();
+  if (mode === "never" || mode === "required") {
+    return mode;
+  }
+
+  return DEFAULT_YTDLP_COOKIES_MODE as YtDlpCookiesMode;
 }
 
 function looksLikeYtDlpBinary(value: string) {
@@ -204,14 +229,22 @@ function chooseSubtitleFormat(tracks: SubtitleFormat[]) {
   return tracks.find((track) => track.url);
 }
 
-async function resolveYtDlpCookiesFile(tempDir?: string) {
-  const configuredPath = process.env.YTDLP_COOKIES_PATH?.trim();
+async function resolveYtDlpCookiesFile(cookiesMode: YtDlpCookiesMode, tempDir?: string) {
+  if (cookiesMode === "never") {
+    return null;
+  }
+
+  const configuredPath = getManagedCookiesPath();
 
   if (configuredPath) {
     try {
       await access(configuredPath);
       return configuredPath;
     } catch {
+      if (cookiesMode === "required") {
+        throw new Error("YTDLP_COOKIES_MODE=required，但 YTDLP_COOKIES_PATH 指向的文件不存在。");
+      }
+
       return null;
     }
   }
@@ -223,6 +256,10 @@ async function resolveYtDlpCookiesFile(tempDir?: string) {
     : rawCookies;
 
   if (!cookiesContent || !tempDir) {
+    if (cookiesMode === "required") {
+      throw new Error("YTDLP_COOKIES_MODE=required，但未配置可用的 YouTube cookies。");
+    }
+
     return null;
   }
 
@@ -232,9 +269,21 @@ async function resolveYtDlpCookiesFile(tempDir?: string) {
 }
 
 async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempDir?: string) {
-  const args = [...baseArgs, "--js-runtimes", "node", "--ignore-no-formats-error"];
+  const args = [
+    ...baseArgs,
+    "--js-runtimes",
+    "node",
+    "--ignore-no-formats-error",
+    "--socket-timeout",
+    String(getYtDlpSocketTimeoutSeconds()),
+    "--retries",
+    String(getYtDlpRetryCount()),
+    "--extractor-retries",
+    String(getYtDlpRetryCount()),
+  ];
   const proxyUrl = getProxyUrl();
-  const cookiesPath = await resolveYtDlpCookiesFile(tempDir);
+  const cookiesMode = getYtDlpCookiesMode();
+  const cookiesPath = await resolveYtDlpCookiesFile(cookiesMode, tempDir);
   const remoteComponents = getRemoteComponents();
 
   if (proxyUrl) {
@@ -251,7 +300,7 @@ async function buildYtDlpCommandArgs(baseArgs: string[], videoUrl: string, tempD
 
   args.push(videoUrl);
 
-  return { args, proxyUrl, cookiesPath, remoteComponents };
+  return { args, proxyUrl, cookiesPath, remoteComponents, cookiesMode };
 }
 
 async function fetchSubtitleByFormat(track: SubtitleFormat) {
@@ -398,8 +447,11 @@ export async function fetchTranscriptWithYtDlp(videoUrl: string) {
 
 export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promise<TranscriptFetchResult> {
   const diagnostics: string[] = [`yt-dlp 当前代理：${getProxyUrl() ?? "未配置代理"}`];
+  diagnostics.push(`yt-dlp cookies 模式：${getYtDlpCookiesMode()}`);
   diagnostics.push(`yt-dlp cookies：${process.env.YTDLP_COOKIES_PATH || process.env.YTDLP_COOKIES_B64 || process.env.YTDLP_COOKIES ? "已配置" : "未配置"}`);
   diagnostics.push(`yt-dlp remote components：${getRemoteComponents() || "未配置"}`);
+  diagnostics.push(`yt-dlp socket timeout：${getYtDlpSocketTimeoutSeconds()}s`);
+  diagnostics.push(`yt-dlp retry count：${getYtDlpRetryCount()}`);
 
   try {
     const { info, stderr } = await loadYtDlpInfo(videoUrl);
@@ -467,6 +519,10 @@ export async function fetchTranscriptWithYtDlpDetailed(videoUrl: string): Promis
 
     if (message.includes("Requested format is not available")) {
       hints.push("当前版本已默认追加 --ignore-no-formats-error，尽量保留字幕元数据提取。若仍失败，通常说明 YouTube 在当前 IP 上把可用元数据也限制了。");
+    }
+
+    if (message.includes("Read timed out")) {
+      hints.push("当前失败点更像网络超时而不是字幕不存在。建议优先配置代理；如果仍要直连，可继续提高 YTDLP_SOCKET_TIMEOUT_SECONDS。");
     }
 
     return {

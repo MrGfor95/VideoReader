@@ -65,6 +65,19 @@ PORT=8788
 PYTHON_FOR_YTDLP=C:\Python312\python.exe
 HTTP_PROXY=http://127.0.0.1:7890
 HTTPS_PROXY=http://127.0.0.1:7890
+YTDLP_COOKIES_MODE=auto
+YTDLP_SOCKET_TIMEOUT_SECONDS=45
+YTDLP_RETRY_COUNT=2
+COOKIE_UPLOAD_TOKEN=your-admin-token
+YTDLP_MANAGED_COOKIES_PATH=/app/runtime/youtube-cookies.txt
+```
+
+`YTDLP_COOKIES_MODE` 支持：
+
+```text
+auto      # 有 cookies 就用，没有就直连
+never     # 完全禁用 cookies
+required  # 必须提供 cookies，否则直接报配置错误
 ```
 
 ## Docker 部署

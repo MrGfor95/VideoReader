@@ -24,6 +24,8 @@ export type SubtitleFormat = {
   url?: string;
 };
 
+export type YtDlpCookiesMode = "auto" | "never" | "required";
+
 export type YtDlpInfo = {
   subtitles?: Record<string, SubtitleFormat[]>;
   automatic_captions?: Record<string, SubtitleFormat[]>;

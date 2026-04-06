@@ -1,6 +1,10 @@
 export const PREFERRED_CAPTION_LANGUAGES = ["en-orig", "en", "en-US", "zh-Hans", "zh-CN", "zh"];
 export const PREFERRED_YTDLP_LANGUAGES = "en-orig,en,en-US,zh-Hans,zh-CN,zh";
 export const PREFERRED_YTDLP_FETCH_LANGUAGES = ["en-orig", "en", "en-US"];
+export const DEFAULT_YTDLP_REMOTE_COMPONENTS = "ejs:github";
+export const DEFAULT_YTDLP_SOCKET_TIMEOUT_SECONDS = 45;
+export const DEFAULT_YTDLP_RETRY_COUNT = 2;
+export const DEFAULT_YTDLP_COOKIES_MODE = "auto";
 
 export const MAX_CHARS_PER_CHUNK = 24000;
 export const MAX_ENTRIES_PER_CHUNK = 320;

@@ -23,22 +23,54 @@ function normalizeProxyServer(proxyServer: string) {
   return /^https?:\/\//i.test(value) ? value : `http://${value}`;
 }
 
-function readWindowsProxyFromRegistry() {
+function readWindowsInternetSettingsProxy() {
   if (process.platform !== "win32") {
     return null;
   }
 
   try {
     const output = execSync(
-      'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer',
+      'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"',
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     );
 
-    const match = output.match(/ProxyServer\s+REG_SZ\s+(.+)/);
+    const proxyEnabled = output.match(/ProxyEnable\s+REG_DWORD\s+0x1/i);
+
+    if (!proxyEnabled) {
+      return null;
+    }
+
+    const proxyServer = output.match(/ProxyServer\s+REG_SZ\s+(.+)/i);
+    return proxyServer ? normalizeProxyServer(proxyServer[1].trim()) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readWindowsWinHttpProxy() {
+  if (process.platform !== "win32") {
+    return null;
+  }
+
+  try {
+    const output = execSync("netsh winhttp show proxy", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+
+    if (/Direct access \(no proxy server\)/i.test(output)) {
+      return null;
+    }
+
+    const match = output.match(/Proxy Server\(s\)\s*:\s*(.+)/i);
     return match ? normalizeProxyServer(match[1].trim()) : null;
   } catch {
     return null;
   }
+}
+
+function readWindowsSystemProxy() {
+  return readWindowsWinHttpProxy() || readWindowsInternetSettingsProxy();
 }
 
 export function getProxyUrl() {
@@ -46,7 +78,7 @@ export function getProxyUrl() {
     process.env.HTTPS_PROXY ||
     process.env.HTTP_PROXY ||
     process.env.ALL_PROXY ||
-    readWindowsProxyFromRegistry()
+    readWindowsSystemProxy()
   );
 }
 

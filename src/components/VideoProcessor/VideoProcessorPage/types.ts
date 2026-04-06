@@ -16,8 +16,15 @@ export type UseVideoProcessorReturn = {
   progress: number;
   chunkProgress: string;
   logs: string[];
+  cookieAdminToken: string;
+  cookieUploadMessage: string;
+  cookieUploadError: string;
+  cookieUploadLoading: boolean;
   loadDebugPreview: () => void;
   setYoutubeUrl: (value: string) => void;
   setPreferredLanguage: (value: string) => void;
+  setCookieAdminToken: (value: string) => void;
+  setCookieFile: (file: File | null) => void;
+  uploadCookies: () => Promise<void>;
   handleSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 };

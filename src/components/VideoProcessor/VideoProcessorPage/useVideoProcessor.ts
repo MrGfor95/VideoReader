@@ -3,6 +3,7 @@
 import { useState } from "react";
 import debugPreviewFixture from "@/components/VideoProcessor/VideoProcessorPage/debugPreviewFixture";
 import {
+  DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE,
   DEBUG_PREVIEW_CHUNK_PROGRESS,
   DEBUG_PREVIEW_LOGS,
   DEBUG_PREVIEW_STATUS_MESSAGE,
@@ -12,7 +13,7 @@ import {
   UNREACHABLE_SUBMISSION_ERROR_MESSAGE,
 } from "@/components/VideoProcessor/VideoProcessorPage/constants";
 import type { UseVideoProcessorReturn } from "@/components/VideoProcessor/VideoProcessorPage/types";
-import type { ProcessResponse, StreamEvent } from "@/types/video-processor";
+import type { CookieUploadResponse, ProcessResponse, StreamEvent } from "@/types/video-processor";
 
 function getErrorMessage(payload: ProcessResponse | { error?: string }) {
   return "error" in payload ? payload.error ?? "处理失败。" : "处理失败。";
@@ -50,6 +51,11 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
   const [progress, setProgress] = useState(0);
   const [chunkProgress, setChunkProgress] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+  const [cookieAdminToken, setCookieAdminToken] = useState("");
+  const [cookieFile, setCookieFile] = useState<File | null>(null);
+  const [cookieUploadMessage, setCookieUploadMessage] = useState("");
+  const [cookieUploadError, setCookieUploadError] = useState("");
+  const [cookieUploadLoading, setCookieUploadLoading] = useState(false);
 
   function loadDebugPreview() {
     setLoading(false);
@@ -59,6 +65,53 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     setProgress(0.78);
     setChunkProgress(DEBUG_PREVIEW_CHUNK_PROGRESS);
     setLogs([...DEBUG_PREVIEW_LOGS]);
+  }
+
+  async function uploadCookies() {
+    if (!cookieFile) {
+      setCookieUploadError("请先选择 cookies.txt 文件。");
+      setCookieUploadMessage("");
+      return;
+    }
+
+    if (!cookieAdminToken.trim()) {
+      setCookieUploadError("请输入 Cookie 管理口令。");
+      setCookieUploadMessage("");
+      return;
+    }
+
+    setCookieUploadLoading(true);
+    setCookieUploadError("");
+    setCookieUploadMessage("");
+
+    try {
+      const content = await cookieFile.text();
+      const response = await fetch("/api/cookies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Cookie-Upload-Token": cookieAdminToken.trim(),
+        },
+        body: JSON.stringify({
+          content,
+          filename: cookieFile.name,
+        }),
+      });
+
+      const payload = (await response.json()) as CookieUploadResponse | { error?: string };
+
+      if (!response.ok) {
+        throw new Error("error" in payload ? payload.error ?? DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE : DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);
+      }
+
+      setCookieUploadMessage(payload.message);
+      setCookieUploadError("");
+    } catch (uploadError) {
+      setCookieUploadError(normalizeSubmissionError(uploadError) || DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);
+      setCookieUploadMessage("");
+    } finally {
+      setCookieUploadLoading(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -167,9 +220,16 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     progress,
     chunkProgress,
     logs,
+    cookieAdminToken,
+    cookieUploadMessage,
+    cookieUploadError,
+    cookieUploadLoading,
     loadDebugPreview,
     setYoutubeUrl,
     setPreferredLanguage,
+    setCookieAdminToken,
+    setCookieFile,
+    uploadCookies,
     handleSubmit,
   };
 }

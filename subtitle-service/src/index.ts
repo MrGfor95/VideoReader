@@ -1,7 +1,8 @@
 import { Readable } from "node:stream";
 import { createServer } from "node:http";
+import { getCookieUploadToken, writeManagedCookiesFile } from "../../src/server/cookies";
 import { createProcessStream } from "../../src/server/process";
-import type { ProcessRequest } from "../../src/types/video-processor";
+import type { CookieUploadRequest, ProcessRequest } from "../../src/types/video-processor";
 
 const port = Number(process.env.PORT ?? 8788);
 const host = process.env.HOST ?? "0.0.0.0";
@@ -61,6 +62,36 @@ const server = createServer(async (request, response) => {
       });
 
       Readable.fromWeb(stream as NodeCompatibleReadableStream).pipe(response);
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/admin/cookies") {
+      const expectedToken = getCookieUploadToken();
+      const providedToken = request.headers["x-cookie-upload-token"];
+
+      if (!expectedToken) {
+        writeJson(response, 503, { error: "服务端未配置 COOKIE_UPLOAD_TOKEN，暂不允许上传 cookies。" });
+        return;
+      }
+
+      if (providedToken !== expectedToken) {
+        writeJson(response, 403, { error: "Cookie 管理口令无效。" });
+        return;
+      }
+
+      const body = (await readJsonBody(request)) as CookieUploadRequest;
+      const content = body.content?.trim();
+
+      if (!content) {
+        writeJson(response, 400, { error: "请上传有效的 cookies.txt 内容。" });
+        return;
+      }
+
+      const targetPath = await writeManagedCookiesFile(content);
+      writeJson(response, 200, {
+        message: "Cookie 文件已更新，后续请求将自动使用最新内容。",
+        path: targetPath,
+      });
       return;
     }
 

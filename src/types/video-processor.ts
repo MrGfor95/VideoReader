@@ -27,6 +27,16 @@ export type ProcessRequest = {
   preferredLanguage?: string;
 };
 
+export type CookieUploadResponse = {
+  message: string;
+  path?: string;
+};
+
+export type CookieUploadRequest = {
+  content?: string;
+  filename?: string;
+};
+
 export type ProcessingStats = {
   chunkCount: number;
   transcriptCharacters: number;

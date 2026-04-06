@@ -17,9 +17,16 @@ export default function VideoProcessorPage() {
     progress,
     chunkProgress,
     logs,
+    cookieAdminToken,
+    cookieUploadMessage,
+    cookieUploadError,
+    cookieUploadLoading,
     loadDebugPreview,
     setYoutubeUrl,
     setPreferredLanguage,
+    setCookieAdminToken,
+    setCookieFile,
+    uploadCookies,
     handleSubmit,
   } = useVideoProcessor();
 
@@ -29,13 +36,20 @@ export default function VideoProcessorPage() {
       <ProcessorForm
         canDownload={Boolean(result)}
         chunkProgress={chunkProgress}
+        cookieAdminToken={cookieAdminToken}
+        cookieUploadError={cookieUploadError}
+        cookieUploadLoading={cookieUploadLoading}
+        cookieUploadMessage={cookieUploadMessage}
         error={error}
         loading={loading}
         logs={logs}
+        onCookieAdminTokenChange={setCookieAdminToken}
+        onCookieFileChange={setCookieFile}
         onDownload={() => result && downloadHtmlDocument(result)}
         onLoadDebugPreview={loadDebugPreview}
         onPreferredLanguageChange={setPreferredLanguage}
         onSubmit={handleSubmit}
+        onUploadCookies={uploadCookies}
         onYoutubeUrlChange={setYoutubeUrl}
         preferredLanguage={preferredLanguage}
         progress={progress}
