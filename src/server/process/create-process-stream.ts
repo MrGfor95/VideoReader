@@ -18,6 +18,15 @@ import {
   normalizeTranscriptEntries,
   streamEvent,
 } from "@/server/process/helpers";
+import {
+  isManagedDemoVideo,
+  readManagedTranscriptCache,
+  writeManagedTranscriptCache,
+} from "@/server/transcript-cache";
+import {
+  readManagedResultCache,
+  writeManagedResultCache,
+} from "@/server/result-cache";
 
 export type CreateProcessStreamInput = {
   preferredLanguage: string;
@@ -29,6 +38,17 @@ async function resolveTranscript(input: {
   sourceUrl: string;
   videoId: string;
 }) {
+  if (isManagedDemoVideo(input.sourceUrl, input.videoId)) {
+    const cached = await readManagedTranscriptCache(input.videoId);
+
+    if (cached?.captions.length) {
+      return {
+        captions: cached.captions,
+        transcriptSource: "managed-cache",
+      };
+    }
+  }
+
   let transcriptSource = "youtube-page";
   const baseAttempt = await fetchYouTubeTranscriptWithDiagnostics(input.videoId);
   let captions = baseAttempt.captions;
@@ -53,6 +73,14 @@ async function resolveTranscript(input: {
 
   if (!captions.length) {
     throw new Error(buildTranscriptFailureMessage(diagnostics));
+  }
+
+  if (isManagedDemoVideo(input.sourceUrl, input.videoId)) {
+    await writeManagedTranscriptCache({
+      captions,
+      sourceUrl: input.sourceUrl,
+      videoId: input.videoId,
+    });
   }
 
   return {
@@ -144,6 +172,48 @@ export function createProcessStream(input: CreateProcessStreamInput) {
           throw new Error("无法从链接中识别 YouTube Video ID。");
         }
 
+        if (isManagedDemoVideo(input.sourceUrl, videoId)) {
+          const cachedResult = await readManagedResultCache({
+            preferredLanguage: input.preferredLanguage,
+            videoId,
+          });
+
+          if (cachedResult?.result) {
+            const payload: ProcessResponse = {
+              ...cachedResult.result,
+              metadata: {
+                ...cachedResult.result.metadata,
+                sourceUrl: input.sourceUrl,
+                transcriptSource: "managed-ai-cache",
+                videoId,
+              },
+            };
+
+            streamEvent(controller, {
+              type: "status",
+              stage: "finalizing",
+              message: "已命中演示视频 AI 缓存，正在直接返回结果。",
+              progress: 0.98,
+            });
+
+            if (payload.metadata.stats) {
+              streamEvent(controller, {
+                type: "metadata",
+                payload: payload.metadata,
+                stats: payload.metadata.stats,
+              });
+            }
+
+            streamEvent(controller, {
+              type: "complete",
+              payload,
+            });
+
+            controller.close();
+            return;
+          }
+        }
+
         const transcript = await resolveTranscript({
           controller,
           sourceUrl: input.sourceUrl,
@@ -203,6 +273,15 @@ export function createProcessStream(input: CreateProcessStreamInput) {
           speakers: consolidated.speakers,
           metadata,
         };
+
+        if (isManagedDemoVideo(input.sourceUrl, videoId)) {
+          await writeManagedResultCache({
+            preferredLanguage: input.preferredLanguage,
+            result: finalResponse,
+            sourceUrl: input.sourceUrl,
+            videoId,
+          });
+        }
 
         streamEvent(controller, {
           type: "complete",
