@@ -12,6 +12,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json yarn.lock tsconfig.json next.config.ts open-next.config.ts ./
+COPY .cache ./.cache
 COPY src ./src
 COPY subtitle-service ./subtitle-service
 
