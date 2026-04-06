@@ -19,6 +19,10 @@ function getErrorMessage(payload: ProcessResponse | { error?: string }) {
   return "error" in payload ? payload.error ?? "处理失败。" : "处理失败。";
 }
 
+function getCookieUploadSuccessMessage(payload: CookieUploadResponse | { error?: string }) {
+  return "message" in payload ? payload.message : "Cookie 上传完成。";
+}
+
 function normalizeSubmissionError(error: unknown) {
   if (error instanceof Error) {
     const message = error.message.trim();
@@ -104,7 +108,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
         throw new Error("error" in payload ? payload.error ?? DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE : DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);
       }
 
-      setCookieUploadMessage(payload.message);
+      setCookieUploadMessage(getCookieUploadSuccessMessage(payload));
       setCookieUploadError("");
     } catch (uploadError) {
       setCookieUploadError(normalizeSubmissionError(uploadError) || DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE);
