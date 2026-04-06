@@ -71,7 +71,6 @@ YTDLP_RETRY_COUNT=2
 COOKIE_UPLOAD_TOKEN=your-admin-token
 YTDLP_MANAGED_COOKIES_PATH=/app/runtime/youtube-cookies.txt
 DEMO_TRANSCRIPT_CACHE_PATH=/app/runtime/demo-transcript.json
-DEMO_RESULT_CACHE_PATH=/app/runtime/demo-result.json
 MANAGED_RESULT_CACHE_DIRECTORY=/app/runtime/result-cache
 ```
 

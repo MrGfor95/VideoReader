@@ -14,6 +14,7 @@ export default function VideoProcessorPage() {
     loading,
     error,
     statusMessage,
+    cacheHitMessage,
     progress,
     chunkProgress,
     logs,
@@ -35,6 +36,7 @@ export default function VideoProcessorPage() {
       <HeroSection />
       <ProcessorForm
         canDownload={Boolean(result)}
+        cacheHitMessage={cacheHitMessage}
         chunkProgress={chunkProgress}
         cookieAdminToken={cookieAdminToken}
         cookieUploadError={cookieUploadError}
@@ -59,6 +61,7 @@ export default function VideoProcessorPage() {
       />
       <PreviewPanel
         chunkProgress={chunkProgress}
+        cacheHitMessage={cacheHitMessage}
         loading={loading}
         result={result}
         statusMessage={statusMessage}

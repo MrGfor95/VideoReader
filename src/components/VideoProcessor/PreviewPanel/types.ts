@@ -5,6 +5,7 @@ export type PreviewPanelProps = {
   loading: boolean;
   statusMessage: string;
   chunkProgress: string;
+  cacheHitMessage: string;
 };
 
 export type UsePreviewPanelInput = {

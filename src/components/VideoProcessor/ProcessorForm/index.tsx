@@ -8,6 +8,7 @@ export default function ProcessorForm(props: ProcessorFormProps) {
     loading,
     error,
     statusMessage,
+    cacheHitMessage,
     progress,
     chunkProgress,
     logs,
@@ -89,6 +90,11 @@ export default function ProcessorForm(props: ProcessorFormProps) {
               />
             </div>
             <p className="mt-3 text-sm text-slate-400">{chunkProgress}</p>
+            {cacheHitMessage ? (
+              <p className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-sm text-emerald-100">
+                {cacheHitMessage}
+              </p>
+            ) : null}
             {logs.length ? (
               <div className="mt-3 flex flex-col gap-2 text-sm text-slate-400">
                 {logs.map((item, index) => (

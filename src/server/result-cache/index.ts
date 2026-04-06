@@ -1,17 +1,25 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DEFAULT_RESULT_CACHE_DIRECTORY } from "@/server/result-cache/constants";
 import type { ManagedResultCache } from "@/server/result-cache/types";
 import type { ProcessResponse } from "@/types/video-processor";
 
+function normalizeLegacyDirectory(value: string) {
+  return /\.json$/i.test(value) ? dirname(value) : value;
+}
+
 function getManagedResultCacheDirectory() {
-  return (
+  const configured =
     process.env.RESULT_CACHE_DIRECTORY?.trim() ||
     process.env.MANAGED_RESULT_CACHE_DIRECTORY?.trim() ||
     process.env.DEMO_RESULT_CACHE_PATH?.trim() ||
-    process.env.MANAGED_RESULT_CACHE_PATH?.trim() ||
-    DEFAULT_RESULT_CACHE_DIRECTORY
-  );
+    process.env.MANAGED_RESULT_CACHE_PATH?.trim();
+
+  if (configured) {
+    return normalizeLegacyDirectory(configured);
+  }
+
+  return DEFAULT_RESULT_CACHE_DIRECTORY;
 }
 
 function buildResultCacheKey(input: { preferredLanguage: string; videoId: string }) {

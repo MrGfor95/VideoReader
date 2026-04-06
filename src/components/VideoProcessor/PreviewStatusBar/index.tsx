@@ -1,9 +1,14 @@
+import {
+  CACHE_HIT_BADGE_LABEL,
+  CACHE_HIT_BADGE_STYLES,
+} from "@/components/VideoProcessor/PreviewStatusBar/constants";
 import type { PreviewStatusBarProps } from "@/components/VideoProcessor/PreviewStatusBar/types";
 
 export default function PreviewStatusBar({
   loading,
   progressLabel,
   statusMessage,
+  cacheHitMessage,
 }: PreviewStatusBarProps) {
   return (
     <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4">
@@ -24,6 +29,16 @@ export default function PreviewStatusBar({
           </span>
         ) : null}
       </div>
+      {cacheHitMessage ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-medium tracking-[0.18em] ${CACHE_HIT_BADGE_STYLES}`}
+          >
+            {CACHE_HIT_BADGE_LABEL}
+          </span>
+          <p className="text-sm text-emerald-100/90">{cacheHitMessage}</p>
+        </div>
+      ) : null}
     </section>
   );
 }

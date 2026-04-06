@@ -9,6 +9,7 @@ export default function PreviewDocument({
   progressLabel,
   result,
   statusMessage,
+  cacheHitMessage,
   onLatestBlockRef,
 }: PreviewDocumentProps) {
   const { displayResult, isAnimating, pendingBlockCount } = useProgressivePreview({ result });
@@ -17,6 +18,7 @@ export default function PreviewDocument({
   return (
     <div className="mt-6 flex flex-col gap-6">
       <PreviewStatusBar
+        cacheHitMessage={cacheHitMessage}
         loading={loading || isAnimating}
         progressLabel={progressLabel}
         statusMessage={statusMessage}

@@ -15,5 +15,6 @@ export type PreviewDocumentProps = {
   progressLabel: string;
   result: ProcessResponse;
   statusMessage: string;
+  cacheHitMessage: string;
   onLatestBlockRef: (node: HTMLElement | null) => void;
 };

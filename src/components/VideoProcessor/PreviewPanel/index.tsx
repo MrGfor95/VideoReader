@@ -9,6 +9,7 @@ export default function PreviewPanel({
   loading,
   statusMessage,
   chunkProgress,
+  cacheHitMessage,
 }: PreviewPanelProps) {
   const { setLatestBlockRef } = usePreviewPanel({ loading, result });
 
@@ -28,6 +29,7 @@ export default function PreviewPanel({
 
       {result ? (
         <PreviewDocument
+          cacheHitMessage={cacheHitMessage}
           loading={loading}
           progressLabel={chunkProgress}
           onLatestBlockRef={setLatestBlockRef}

@@ -3,11 +3,16 @@
 import { useState } from "react";
 import debugPreviewFixture from "@/components/VideoProcessor/VideoProcessorPage/debugPreviewFixture";
 import {
+  CACHE_HIT_MESSAGE,
+  CACHE_HIT_STATUS_FRAGMENT,
   DEFAULT_COOKIE_UPLOAD_ERROR_MESSAGE,
   DEBUG_PREVIEW_CHUNK_PROGRESS,
   DEBUG_PREVIEW_LOGS,
   DEBUG_PREVIEW_STATUS_MESSAGE,
   DEFAULT_SUBMISSION_ERROR_MESSAGE,
+  INFLIGHT_REUSE_MESSAGE,
+  INFLIGHT_REUSE_STATUS_FRAGMENT,
+  MANAGED_AI_CACHE_TRANSCRIPT_SOURCE,
   INITIAL_FORM,
   NETWORK_SUBMISSION_ERROR_MESSAGE,
   UNREACHABLE_SUBMISSION_ERROR_MESSAGE,
@@ -21,6 +26,26 @@ function getErrorMessage(payload: ProcessResponse | { error?: string }) {
 
 function getCookieUploadSuccessMessage(payload: CookieUploadResponse | { error?: string }) {
   return "message" in payload ? payload.message : "Cookie 上传完成。";
+}
+
+function getCacheHitMessageFromStatus(statusMessage: string) {
+  if (statusMessage.includes(CACHE_HIT_STATUS_FRAGMENT)) {
+    return CACHE_HIT_MESSAGE;
+  }
+
+  if (statusMessage.includes(INFLIGHT_REUSE_STATUS_FRAGMENT)) {
+    return INFLIGHT_REUSE_MESSAGE;
+  }
+
+  return "";
+}
+
+function getCacheHitMessageFromResult(result: ProcessResponse | null) {
+  if (result?.metadata.transcriptSource === MANAGED_AI_CACHE_TRANSCRIPT_SOURCE) {
+    return CACHE_HIT_MESSAGE;
+  }
+
+  return "";
 }
 
 async function readResponsePayload(response: Response) {
@@ -93,6 +118,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [cacheHitMessage, setCacheHitMessage] = useState("");
   const [progress, setProgress] = useState(0);
   const [chunkProgress, setChunkProgress] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
@@ -107,6 +133,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     setError("");
     setResult(debugPreviewFixture);
     setStatusMessage(DEBUG_PREVIEW_STATUS_MESSAGE);
+    setCacheHitMessage("");
     setProgress(0.78);
     setChunkProgress(DEBUG_PREVIEW_CHUNK_PROGRESS);
     setLogs([...DEBUG_PREVIEW_LOGS]);
@@ -185,6 +212,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     setError("");
     setResult(null);
     setStatusMessage("正在建立处理任务。");
+    setCacheHitMessage("");
     setProgress(0);
     setChunkProgress("");
     setLogs([]);
@@ -211,6 +239,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
         }
 
         setResult(data as ProcessResponse);
+        setCacheHitMessage(getCacheHitMessageFromResult(data as ProcessResponse));
         setStatusMessage("处理完成。");
         setProgress(1);
         return;
@@ -241,6 +270,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
 
           if (eventData.type === "status") {
             setStatusMessage(eventData.message);
+            setCacheHitMessage((current) => current || getCacheHitMessageFromStatus(eventData.message));
             setProgress(eventData.progress ?? 0);
             setLogs((current) => [...current, eventData.message].slice(-8));
           }
@@ -253,11 +283,13 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
 
           if (eventData.type === "partial") {
             setResult(eventData.payload);
+            setCacheHitMessage((current) => current || getCacheHitMessageFromResult(eventData.payload));
             setChunkProgress(`已完成 ${eventData.chunkIndex + 1} / ${eventData.totalChunks} 段`);
           }
 
           if (eventData.type === "complete") {
             setResult(eventData.payload);
+            setCacheHitMessage((current) => current || getCacheHitMessageFromResult(eventData.payload));
             setStatusMessage("处理完成。");
             setProgress(1);
             completed = true;
@@ -282,6 +314,7 @@ export default function useVideoProcessor(): UseVideoProcessorReturn {
     loading,
     error,
     statusMessage,
+    cacheHitMessage,
     progress,
     chunkProgress,
     logs,

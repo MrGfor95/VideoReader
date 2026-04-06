@@ -13,6 +13,7 @@ export type UseVideoProcessorReturn = {
   loading: boolean;
   error: string;
   statusMessage: string;
+  cacheHitMessage: string;
   progress: number;
   chunkProgress: string;
   logs: string[];
